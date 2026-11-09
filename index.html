@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7FAFD">
+<title>littleSteps</title>
+<meta name="description" content="littleSteps MVP prototype: log a baby's feeds, sleep, diapers, growth, milestones, vaccines and doctor visits in 3 taps, shared with family.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234A90D9'/%3E%3Cellipse cx='12' cy='19' rx='4' ry='6' fill='%23fff'/%3E%3Cellipse cx='21' cy='13' rx='4' ry='6' fill='%23F6D776'/%3E%3C/svg%3E">
+<style>
+:root{
+  --primary:#4A90D9; --primary-strong:#2F74C0; --on-primary:#FFFFFF;
+  --primary-soft:#DCEBFA; --bg:#F7FAFD; --surface:#FFFFFF; --text:#1F2D3D; --text-2:#5B6B7C;
+  --accent:#F6D776; --success:#3E8A65; --success-soft:#DDF1E6; --alert:#B5472F; --alert-soft:#FBE3DC;
+  --line:#E3EBF3; --shadow:0 2px 10px rgba(31,45,61,.06), 0 1px 2px rgba(31,45,61,.05);
+  --scrim:rgba(15,27,45,.38);
+  --fs:16px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Roboto","Segoe UI","PingFang SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+}
+:root[data-theme="night"]{
+  --primary:#6FA8E0; --primary-strong:#6FA8E0; --on-primary:#0F1B2D;
+  --primary-soft:#1E3554; --bg:#0F1B2D; --surface:#172740; --text:#D8D2C8; --text-2:#9AA3AD;
+  --accent:#B89E50; --success:#7BC4A0; --success-soft:#1D3A33; --alert:#E8806A; --alert-soft:#3A2622;
+  --line:#243A5A; --shadow:none; --scrim:rgba(5,10,18,.6);
+}
+*{box-sizing:border-box}
+html{font-size:var(--fs)}
+body{margin:0;background:var(--bg);color:var(--text);font-size:1rem;line-height:1.45;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* page layout: phone column + optional demo guide */
+.page{min-height:100dvh;display:flex;justify-content:center;gap:40px;align-items:flex-start}
+.guide{display:none}
+@media (min-width:980px){
+  html,body{height:100%;overflow:hidden}
+  .page{padding:32px 24px}
+  .guide{display:flex;flex-direction:column;gap:14px;width:300px;position:sticky;top:32px;padding-top:8px}
+  .app{height:min(880px,calc(100dvh - 64px));border-radius:36px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(31,45,61,.12)}
+}
+.guide h2{margin:0;font-size:1.25rem}
+.guide p{margin:0;color:var(--text-2);font-size:.875rem}
+.guide ol{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px;font-size:.875rem}
+.guide .gbtns{display:flex;flex-direction:column;gap:8px}
+.guide .gbtns button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;font-size:.875rem}
+.guide .gbtns button:hover{border-color:var(--primary)}
+
+.app{position:relative;width:100%;max-width:430px;height:100dvh;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.top{flex:none;padding:calc(10px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
+.main{flex:1;overflow-y:auto;padding:4px 16px 24px;-webkit-overflow-scrolling:touch}
+.tabbar{flex:none;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 10px;font-size:.75rem;color:var(--text-2);min-height:56px}
+.tabbar button[aria-current="page"]{color:var(--primary-strong);font-weight:600}
+:root[data-theme="night"] .tabbar button[aria-current="page"]{color:var(--primary)}
+.tabbar svg{width:24px;height:24px}
+
+/* child switcher */
+.switcher{flex:1;min-width:0;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chip{flex:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px 5px 5px;min-height:44px}
+.chip[aria-pressed="true"]{border-color:var(--ctag);box-shadow:inset 0 0 0 1px var(--ctag)}
+.chip .av{width:32px;height:32px;border-radius:50%;background:var(--ctag);display:grid;place-items:center;font-weight:700;color:#1F2D3D;font-size:.875rem}
+.chip .nm{font-weight:600;font-size:.9375rem;white-space:nowrap}
+.chip .ag{font-size:.75rem;color:var(--text-2);white-space:nowrap}
+.chip[aria-pressed="false"] .ag{display:none}
+.iconbtn{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.iconbtn svg{width:22px;height:22px}
+
+/* generic */
+h1,h2,h3{margin:0;line-height:1.2}
+.h1{font-size:1.625rem;font-weight:700;letter-spacing:-.01em}
+.h2{font-size:1.1875rem;font-weight:650}
+.h3{font-size:1rem;font-weight:650}
+.muted{color:var(--text-2)}
+.small{font-size:.8125rem}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--line);padding:14px 16px}
+.section{margin-top:20px}
+.section > .h2{margin-bottom:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;border:1px solid transparent;min-height:48px;padding:10px 18px;font-weight:600;font-size:1rem;text-decoration:none}
+.btn-primary{background:var(--primary-strong);color:var(--on-primary)}
+.btn-soft{background:var(--primary-soft);color:var(--text)}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+.btn-danger{background:transparent;border-color:var(--alert);color:var(--alert)}
+.btn-block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link{background:none;border:0;padding:0;color:var(--primary-strong);font-weight:600;text-decoration:underline;text-underline-offset:3px;min-height:32px}
+:root[data-theme="night"] .link{color:var(--primary)}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:.75rem;font-weight:600;background:var(--primary-soft);color:var(--text)}
+.badge.ok{background:var(--success-soft);color:var(--success)}
+.badge.warn{background:var(--alert-soft);color:var(--alert)}
+.badge.acc{background:var(--accent);color:#1F2D3D}
+.disclaimer{font-size:.75rem;color:var(--text-2);line-height:1.5;margin-top:10px}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:6px;font-size:.875rem;color:var(--text-2);font-weight:500}
+.input,select.input,textarea.input{width:100%;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:10px 12px;font-size:1rem;color:var(--text)}
+textarea.input{min-height:72px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.seg{display:flex;background:var(--primary-soft);border-radius:14px;padding:4px;gap:4px}
+.seg button,.seg label{flex:1;border:0;background:transparent;border-radius:10px;min-height:44px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;padding:4px 6px;font-size:.9375rem;color:var(--text)}
+.seg button[aria-pressed="true"],.seg input:checked + span{background:var(--surface);box-shadow:var(--shadow)}
+.seg label{padding:0;position:relative}
+.seg label input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:44px;border-radius:10px}
+.check{display:flex;align-items:flex-start;gap:10px;font-size:.9375rem;color:var(--text)}
+.check input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--primary-strong);flex:none}
+
+/* home */
+.status{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .k{font-size:.75rem;color:var(--text-2);font-weight:600}
+.stat .v{font-size:1.0625rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .d{font-size:.75rem;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.running{border:1.5px solid var(--primary);background:var(--primary-soft)}
+.live{display:flex;align-items:center;gap:12px}
+.live .t{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.qbtn{min-height:76px;border-radius:18px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;padding:12px 16px;font-size:1.125rem;font-weight:650;text-align:left}
+.qbtn .ic{width:44px;height:44px;border-radius:14px;background:var(--primary-soft);display:grid;place-items:center;flex:none}
+.qbtn .ic svg{width:26px;height:26px;color:var(--primary-strong)}
+:root[data-theme="night"] .qbtn .ic svg{color:var(--primary)}
+.qbtn.wide{grid-column:span 2;min-height:64px}
+.qbtn small{display:block;font-size:.75rem;font-weight:500;color:var(--text-2)}
+.remind{display:flex;gap:12px;align-items:flex-start}
+.remind .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--alert-soft);color:var(--alert);flex:none}
+.remind .ic.blue{background:var(--primary-soft);color:var(--primary-strong)}
+.remind .ic svg{width:20px;height:20px}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;font-size:.875rem;font-weight:500}
+.banner.off{background:var(--alert-soft);color:var(--alert)}
+.banner.warn{background:#FFF4D6;color:#6B5310}
+:root[data-theme="night"] .banner.warn{background:#3A3220;color:#E6D29A}
+
+/* timeline */
+.entry{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.entry:last-child{border-bottom:0}
+.entry .ic{width:40px;height:40px;border-radius:12px;background:var(--primary-soft);display:grid;place-items:center;flex:none}
+.entry .ic svg{width:22px;height:22px}
+.entry .body{flex:1;min-width:0}
+.entry .ttl{font-weight:600}
+.entry .sub{font-size:.8125rem;color:var(--text-2)}
+.entry .tm{font-size:.8125rem;color:var(--text-2);text-align:right;font-variant-numeric:tabular-nums;flex:none}
+.ctag{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.totals{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.totals .stat .v{font-size:1.125rem}
+
+/* health */
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px}
+.tabs button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;min-height:40px;font-weight:600;font-size:.875rem}
+.tabs button[aria-pressed="true"]{background:var(--primary-strong);color:var(--on-primary);border-color:transparent}
+.mrow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.tick{width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.tick[aria-checked="true"]{background:var(--success);border-color:var(--success);color:#fff}
+:root[data-theme="night"] .tick[aria-checked="true"]{color:#0F1B2D}
+.tick svg{width:18px;height:18px}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--text-2);font-size:10px}
+
+/* sheet */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:20}
+.scrim.in{animation:fade .2s}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;background:var(--bg);border-radius:24px 24px 0 0;z-index:21;padding:8px 16px calc(20px + env(safe-area-inset-bottom))}
+.sheet.in{animation:up .22s ease-out}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 10px}
+.sheet .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+@keyframes up{from{transform:translateY(30px);opacity:.4}}
+@keyframes fade{from{opacity:0}}
+.choice{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.choice button{min-height:96px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-weight:650;font-size:1rem;box-shadow:var(--shadow);padding:8px}
+.choice button small{font-weight:500;font-size:.75rem;color:var(--text-2)}
+.choice button.sugg{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.big-amt{display:flex;align-items:center;justify-content:center;gap:14px}
+.big-amt input{width:150px;text-align:center;font-size:2.5rem;font-weight:700;border:0;border-bottom:2px solid var(--line);background:transparent;padding:4px;font-variant-numeric:tabular-nums}
+.round{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.5rem;display:grid;place-items:center}
+
+/* toast */
+.toast{position:absolute;left:12px;right:12px;bottom:76px;z-index:40;background:#1F2D3D;color:#F7FAFD;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.in{animation:up .2s}
+:root[data-theme="night"] .toast{background:#24395A;color:#E9E4DB}
+.toast .msg{flex:1;font-size:.9375rem}
+.toast button{background:none;border:0;color:#9CC7F5;font-weight:700;min-height:40px;padding:0 6px}
+.toast .ok{width:24px;height:24px;border-radius:50%;background:#7BC4A0;display:grid;place-items:center;flex:none;color:#0F1B2D}
+.toast .ok svg{width:14px;height:14px}
+
+/* dialog */
+.dialog{position:absolute;left:20px;right:20px;top:50%;transform:translateY(-50%);z-index:31;background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.25);animation:fade .15s}
+
+/* lock screen */
+.lock{position:absolute;inset:0;z-index:50;background:linear-gradient(180deg,#1B2E4D 0%,#0B1424 100%);color:#EEF4FB;display:flex;flex-direction:column;align-items:center;padding:56px 16px 24px;gap:14px;animation:fade .25s}
+.lock .clock{font-size:5rem;font-weight:250;line-height:1;letter-spacing:-.02em}
+.la{width:100%;background:rgba(22,38,63,.92);border:1px solid #2E4566;border-radius:24px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.la .t{font-size:2.6rem;font-weight:600;font-variant-numeric:tabular-nums}
+.la button{flex:1;border:0;border-radius:12px;min-height:44px;font-weight:650;background:#24395A;color:#D9E6F6}
+.la button.pri{background:#7DB3F0;color:#0E1A2E}
+.notif{width:100%;background:rgba(22,38,63,.7);border-radius:18px;padding:12px 16px;font-size:.875rem;color:#C5D4E6}
+
+/* onboarding */
+.ob{flex:1;overflow-y:auto;padding:calc(24px + env(safe-area-inset-top)) 20px 24px;display:flex;flex-direction:column;gap:18px}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding-top:28px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.375rem;letter-spacing:-.01em}
+.logo svg{width:40px;height:40px}
+.signbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:1rem}
+.signbtn.dark{background:#1F2D3D;color:#fff;border-color:#1F2D3D}
+.signbtn.wechat{background:#1AAD19;color:#fff;border-color:#1AAD19}
+:root[data-theme="night"] .signbtn.dark{background:#000;border-color:#000}
+.steps{display:flex;gap:6px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--primary)}
+.swatches{display:flex;gap:10px}
+.swatches label{position:relative}
+.swatches input{position:absolute;opacity:0;inset:0;margin:0}
+.swatches span{display:block;width:40px;height:40px;border-radius:50%;border:3px solid transparent}
+.swatches input:checked + span{border-color:var(--text)}
+.swatches input:focus-visible + span{outline:2px solid var(--primary);outline-offset:2px}
+
+/* celebration */
+.celebrate{position:absolute;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+.celebrate i{position:absolute;top:40%;left:50%;width:10px;height:10px;border-radius:2px;animation:burst 1.4s ease-out forwards}
+.celebrate .msg{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border-radius:18px;padding:14px 20px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.15);animation:fadeout 1.5s forwards;white-space:nowrap}
+@keyframes burst{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+@keyframes fadeout{0%{opacity:0;transform:translate(-50%,-40%)}15%{opacity:1;transform:translate(-50%,-50%)}80%{opacity:1}100%{opacity:0}}
+:root[data-theme="night"] .celebrate i{display:none}
+@media (prefers-reduced-motion:reduce){
+  .celebrate i{display:none}
+  *{animation-duration:.01ms!important;transition:none!important}
+}
+.qr{width:150px;height:150px;background:#fff;padding:8px;border-radius:12px}
+.code{font-size:2rem;font-weight:700;letter-spacing:.3em;font-variant-numeric:tabular-nums;text-align:center}
+.empty{text-align:center;color:var(--text-2);padding:28px 8px;font-size:.9375rem}
+.empty svg{width:56px;height:56px;color:var(--primary);opacity:.6;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="guide" aria-label="Demo guide">
+    <h2>littleSteps MVP demo</h2>
+    <p>Front-end prototype of the MVP described in the PRD. Data lives only in this browser; sync, push and sign-in are simulated.</p>
+    <ol>
+      <li>Emily: sign up, add baby, log a night feed in 3 taps</li>
+      <li>Wei: join with a code, see the handover, log a bottle</li>
+      <li>Linda: larger text, tick a milestone</li>
+      <li>Jessica: add a second child and switch</li>
+    </ol>
+    <div class="gbtns" id="guideBtns"></div>
+  </aside>
+  <div class="app" id="app" role="application" aria-label="littleSteps"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------- i18n ---------------- */
+const ZH = {
+  "Get started":"开始使用","Try the demo family":"体验示例家庭","Log a baby's day in three taps.":"三下轻点，记录宝宝的一天。",
+  "Feeds, sleep, diapers, growth and vaccines, shared live with everyone who cares for your baby. Works offline.":"喂奶、睡眠、尿布、生长和疫苗，与所有照顾宝宝的家人实时共享，离线也能用。",
+  "Where does your family live?":"您的家庭在哪里？","This decides where your data is stored and which growth charts and vaccine schedule you see. It can't be changed later.":"这决定数据存储的地区，以及您看到的生长曲线和疫苗计划。之后无法更改。",
+  "United States":"美国","China":"中国","CDC schedule · WHO/CDC charts · US servers":"CDC 计划 · WHO/CDC 曲线 · 美国服务器","China NIP schedule · China growth standard · China servers":"国家免疫规划 · 中国生长标准 · 中国服务器",
+  "Continue":"继续","Back":"返回","Create your account":"创建账户","Continue with Apple":"通过 Apple 继续","Continue with Google":"通过 Google 继续","Continue with email":"通过邮箱继续",
+  "Continue with WeChat":"通过微信继续","Continue with phone number":"通过手机号继续","Your name":"您的名字","Email":"邮箱","Phone number":"手机号","SMS code":"短信验证码","Send code":"发送验证码",
+  "I am the parent or guardian and agree to the Privacy Policy. I consent to littleSteps storing my child's health information.":"我是孩子的父母或监护人，同意隐私政策，并同意 littleSteps 存储孩子的健康信息。",
+  "Have an invite code?":"有邀请码？","Join a family":"加入家庭","Add your baby":"添加宝宝","Name":"名字","Sex":"性别","Girl":"女孩","Boy":"男孩","Birth date":"出生日期",
+  "Birth weight":"出生体重","Birth length":"出生身长","Head size":"头围","Optional":"选填","Colour tag":"颜色标签","Add baby":"添加宝宝",
+  "You're all set":"一切就绪","We added the vaccine schedule and checkup reminders for":"我们已为以下宝宝添加疫苗计划和体检提醒：","Go to home":"进入首页",
+  "Enter the 6-digit code from your family":"输入家人发来的 6 位邀请码","Join":"加入",
+  "Home":"首页","Timeline":"记录","Health":"健康","Family":"家庭","Settings":"设置",
+  "Feed":"喂奶","Sleep":"睡眠","Diaper":"尿布","Growth":"生长","More":"更多","Last feed":"上次喂奶","Sleep now":"睡眠","Last diaper":"上次换尿布",
+  "Awake":"醒着","Asleep":"睡着了","ago":"前","none yet":"暂无","Breast":"亲喂","Bottle":"奶瓶","Solids":"辅食","Left":"左侧","Right":"右侧",
+  "suggested":"建议","Start left":"从左侧开始","Start right":"从右侧开始","Breast milk":"母乳","Formula":"配方奶","Amount":"奶量","Save":"保存","Saved":"已保存","Undo":"撤销",
+  "Feeding":"喂奶中","left side":"左侧","right side":"右侧","Switch side":"换边","Stop":"结束","Sleeping":"睡眠中","Start sleep":"开始睡眠","Stop sleep":"结束睡眠",
+  "Add a missed sleep":"补记一次睡眠","Wet":"湿","Dirty":"脏","Both":"都有","Weight":"体重","Length":"身长","Height":"身高","percentile":"百分位",
+  "Milestone":"里程碑","Vaccine":"疫苗","Doctor visit":"就诊","Note":"备注","Food":"食物","Reaction note":"反应记录","Start":"开始","End":"结束","Time":"时间",
+  "Reminders":"提醒","Today":"今天","Yesterday":"昨天","Feeds":"喂奶","Sleep hrs":"睡眠小时","Diapers":"尿布","Last 7 days":"最近 7 天","No entries this day.":"这一天还没有记录。",
+  "Edit entry":"编辑记录","Delete":"删除","Move to child":"移到另一个孩子","Logged by":"记录人","Not synced yet":"尚未同步",
+  "Growth chart":"生长曲线","Milestones":"里程碑","Vaccines":"疫苗","Visits":"就诊","Add measurement":"添加测量","Mark done":"标记完成","Skip":"跳过","Done":"已完成","Skipped":"已跳过",
+  "Overdue":"已逾期","Due soon":"即将到期","Upcoming":"即将进行","Clinic":"诊所","Date":"日期","Reason":"原因","Doctor or clinic":"医生或诊所","Notes":"备注","Add visit":"添加就诊",
+  "Next checkup":"下次体检","Checkups":"体检","Not medical advice.":"非医疗建议。","Members":"成员","Invite someone":"邀请家人","Children":"孩子","Add child":"添加孩子","Owner":"创建者","Member":"成员","You":"你",
+  "Remove":"移除","Archive":"归档","Invite code":"邀请码","Valid for 7 days, single use.":"7 天内有效，仅可使用一次。","Copy link":"复制链接","Revoke":"撤销","Pending invites":"待接受的邀请",
+  "Simulate: they accept":"模拟：对方接受邀请","Language":"语言","Units":"单位","Display":"显示","Auto (night after sunset)":"自动（日落后夜间模式）","Day":"日间","Night":"夜间",
+  "Larger text":"大字体","Feed-due reminder":"喂奶提醒","Off":"关闭","every":"每","hours":"小时","Simulate offline":"模拟离线","Export data (CSV)":"导出数据（CSV）",
+  "Delete account and all data":"删除账户和所有数据","Reset demo":"重置演示","Privacy policy":"隐私政策","Offline · entries are saved on this phone and will sync":"离线 · 记录已保存在本机，联网后会同步",
+  "Please check":"请核对","Save anyway":"仍然保存","Cancel":"取消","Possible duplicate":"可能重复","Merge":"合并","Keep both":"保留两条",
+  "Log for both":"同时记录给所有孩子","Lock screen":"锁屏","Tap anywhere above to unlock":"点击上方任意位置解锁","Still running?":"还在计时吗？","Stop now":"立即结束",
+  "Custom milestone":"自定义里程碑","Add":"添加","Usually by":"通常在","months":"个月","Source":"来源","Region":"地区","Sign out":"退出",
+  "Feeding is due":"该喂奶了","Next side":"下次建议","Nap":"小睡","Night sleep":"夜间睡眠","Copied":"已复制","Synced from":"已同步自",
+  "entries synced":"条记录已同步","Back online":"已恢复联网","week":"周","weeks":"周","month":"个月","years":"岁","year":"岁","days":"天","day":"天",
+  "Celebrate!":"太棒了！","Leave and keep a copy":"离开并保留副本","Family settings":"家庭设置","Photo":"照片","ticked":"已完成","Unticked":"已取消",
+  "Wei logged":"爸爸记录了","Partner log":"家人记录","Simulate partner log":"模拟家人记录","Open lock screen":"打开锁屏","Night feed walkthrough":"夜间喂奶演示",
+  "Second child":"第二个孩子","Larger text for grandparents":"为长辈开启大字体","Toggle offline":"切换离线","Language: 中文 / EN":"语言：中文 / EN","Join as Wei":"以爸爸身份加入",
+  "Wrong child? Every entry can be moved.":"选错孩子？每条记录都可以移动。"
+};
+let LANG = 'en';
+function t(s, v){ let r = (LANG==='zh' && ZH[s]) || s; if(v) for(const k in v) r = r.replace('{'+k+'}', v[k]); return r; }
+
+/* ---------------- icons ---------------- */
+const I = {
+  feed:'<path d="M9 3h6M10 3v3l-2 3v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9l-2-3V3M8 12h8"/>',
+  sleep:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  diaper:'<path d="M3 7h18v3a9 9 0 0 1-18 0V7z"/><path d="M8 7v2m8-2v2"/>',
+  growth:'<path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/>',
+  more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  home:'<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+  list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  people:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.8 0 5 2.2 5 5"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.4 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.5 14H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7.4l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 3.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.6 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+  star:'<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
+  syringe:'<path d="M18 2l4 4M20 4l-9.5 9.5M14 6l4 4M7.5 12.5l4 4M11 9l-6.5 6.5v4h4L15 13M4.5 19.5L2 22"/>',
+  stetho:'<path d="M6 3v6a4 4 0 0 0 8 0V3M10 13v3a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="12" r="2"/>',
+  note:'<path d="M5 3h10l4 4v14H5z"/><path d="M9 12h6M9 16h6"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7"/>',
+  chevL:'<path d="M15 5l-7 7 7 7"/>', chevR:'<path d="M9 5l7 7-7 7"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  cloudOff:'<path d="M3 3l18 18M8 8a5 5 0 0 0-1 9.9h10M20 16.5A4 4 0 0 0 17 10h-.5A6 6 0 0 0 10.6 6"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  baby:'<circle cx="12" cy="8" r="4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/>'
+};
+function ic(n, extra){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'+(extra||'')+'>'+I[n]+'</svg>'; }
+const LOGO = '<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#4A90D9"/><ellipse cx="15" cy="24" rx="5" ry="7.5" fill="#fff"/><circle cx="12" cy="14.5" r="1.6" fill="#fff"/><circle cx="16" cy="13.5" r="1.6" fill="#fff"/><ellipse cx="26" cy="17" rx="5" ry="7.5" fill="#F6D776"/><circle cx="23" cy="7.5" r="1.6" fill="#F6D776"/><circle cx="27" cy="6.5" r="1.6" fill="#F6D776"/></svg>';
+
+/* ---------------- helpers ---------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id'+Math.random().toString(36).slice(2)+Date.now());
+const now = () => Date.now();
+const MIN = 60000, HOUR = 3600000, DAY = 86400000, MONTH_D = 30.4375;
+const CHILD_COLORS = ['#A7CDF2','#F6D776','#B9E0C8','#F4C0B0','#D4C4F0'];
+function locale(){ return LANG==='zh' ? 'zh-CN' : 'en-US'; }
+function fmtTime(ts){ return new Date(ts).toLocaleTimeString(locale(), {hour:'numeric', minute:'2-digit'}); }
+function fmtDate(ts, opts){ return new Date(ts).toLocaleDateString(locale(), opts || {month:'short', day:'numeric'}); }
+function fmtDateLong(ts){ return new Date(ts).toLocaleDateString(locale(), {weekday:'long', month:'long', day:'numeric'}); }
+function fmtDur(ms, withSec){
+  ms = Math.max(0, ms); const h = Math.floor(ms/HOUR), m = Math.floor(ms%HOUR/MIN), s = Math.floor(ms%MIN/1000);
+  if(withSec){ const pad=n=>String(n).padStart(2,'0'); return h ? h+':'+pad(m)+':'+pad(s) : pad(m)+':'+pad(s); }
+  if(LANG==='zh') return h ? h+'小时'+(m? m+'分':'') : m+'分钟';
+  return h ? h+' h'+(m? ' '+m+' min':'') : m+' min';
+}
+function ago(ts){ const d = now()-ts; if(d < MIN) return LANG==='zh'?'刚刚':'just now'; return LANG==='zh' ? fmtDur(d)+'前' : fmtDur(d)+' ago'; }
+function toLocalInput(ts){ const d=new Date(ts); return new Date(ts - d.getTimezoneOffset()*MIN).toISOString().slice(0,16); }
+function toDateInput(ts){ return toLocalInput(ts).slice(0,10); }
+function parseLocal(s){ return s ? new Date(s.length===10 ? s+'T00:00' : s).getTime() : NaN; }
+function startOfDay(ts){ const d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function ageMonths(birth, at){ return ((at||now()) - birth) / (MONTH_D*DAY); }
+function ageLabel(birth){
+  const days = Math.floor((now()-birth)/DAY);
+  if(days < 14) return LANG==='zh' ? days+'天' : days+(days===1?' day':' days');
+  if(days < 7*13){ const w=Math.floor(days/7); return LANG==='zh' ? w+'周' : w+' weeks'; }
+  const mo = Math.floor(days/MONTH_D);
+  if(mo < 24) return LANG==='zh' ? mo+'个月' : mo+' months';
+  const y = Math.floor(mo/12), r = mo%12;
+  return LANG==='zh' ? y+'岁'+(r? r+'个月':'') : y+(y===1?' year':' years')+(r? ' '+r+' mo':'');
+}
+function ordinal(n){ if(LANG==='zh') return '第'+n; const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+/* units: stored metric */
+function fmtVol(ml){ return state.units==='imperial' ? (ml/29.5735).toFixed(1)+' oz' : Math.round(ml)+' ml'; }
+function fmtWeight(kg){
+  if(state.units==='imperial'){ const totOz = kg*35.274; const lb=Math.floor(totOz/16), oz=Math.round(totOz%16); return oz===16 ? (lb+1)+' lb' : lb+' lb '+oz+' oz'; }
+  return (+kg).toFixed(2).replace(/0$/,'')+' kg';
+}
+function fmtLen(cm){ return state.units==='imperial' ? (cm/2.54).toFixed(1)+' in' : (+cm).toFixed(1)+' cm'; }
+
+/* ---------------- content (versioned "content as data") ---------------- */
+/* WHO Child Growth Standards LMS, monthly 0-12 m. Demo subset embedded for the prototype; production loads full tables (WHO / CDC / WS/T 423-2022). */
+const LMS = {
+  weight:{
+    boy:[[0.3487,3.3464,0.14602],[0.2297,4.4709,0.13395],[0.1970,5.5675,0.12385],[0.1738,6.3762,0.11727],[0.1553,7.0023,0.11316],[0.1395,7.5105,0.11080],[0.1257,7.9340,0.10958],[0.1134,8.2970,0.10902],[0.1021,8.6151,0.10882],[0.0917,8.9014,0.10881],[0.0820,9.1649,0.10891],[0.0730,9.4122,0.10906],[0.0644,9.6479,0.10925]],
+    girl:[[0.3809,3.2322,0.14171],[0.1714,4.1873,0.13724],[0.0962,5.1282,0.13000],[0.0402,5.8458,0.12619],[-0.0050,6.4237,0.12402],[-0.0430,6.8985,0.12274],[-0.0756,7.2970,0.12204],[-0.1039,7.6422,0.12178],[-0.1288,7.9487,0.12181],[-0.1507,8.2254,0.12199],[-0.1700,8.4800,0.12223],[-0.1872,8.7192,0.12247],[-0.2024,8.9481,0.12268]]
+  },
+  length:{
+    boy:[49.8842,54.7244,58.4249,61.4292,63.8860,65.9026,67.6236,69.1645,70.5994,71.9687,73.2812,74.5388,75.7488].map((m,i)=>[1,m,[0.03795,0.03557,0.03424,0.03328,0.03257,0.03204,0.03165,0.03139,0.03124,0.03117,0.03118,0.03125,0.03137][i]]),
+    girl:[49.1477,53.6872,57.0673,59.8029,62.0899,64.0301,65.7311,67.2873,68.7498,70.1435,71.4818,72.7710,74.0150].map((m,i)=>[1,m,[0.03790,0.03640,0.03568,0.03520,0.03486,0.03463,0.03448,0.03441,0.03440,0.03444,0.03452,0.03464,0.03479][i]])
+  },
+  head:{
+    boy:[34.4618,37.2759,39.1285,40.5135,41.6317,42.5576,43.3306,43.9803,44.5300,44.9998,45.4051,45.7573,46.0661].map((m,i)=>[1,m,[0.03686,0.03133,0.02997,0.02918,0.02868,0.02837,0.02817,0.02804,0.02796,0.02792,0.02790,0.02789,0.02789][i]]),
+    girl:[33.8787,36.5463,38.2521,39.5328,40.5817,41.4590,42.1995,42.8290,43.3671,43.8300,44.2319,44.5844,44.8965].map((m,i)=>[1,m,[0.03496,0.03210,0.03168,0.03140,0.03119,0.03102,0.03087,0.03075,0.03063,0.03053,0.03044,0.03035,0.03027][i]])
+  }
+};
+function lmsAt(metric, sex, m){
+  const tb = LMS[metric][sex==='boy'?'boy':'girl']; if(m < 0 || m > 12) return null;
+  const i = Math.min(11, Math.floor(m)), f = m - i, a = tb[i], b = tb[i+1];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+function zOf(x,[L,M,S]){ return Math.abs(L)<1e-6 ? Math.log(x/M)/S : (Math.pow(x/M,L)-1)/(L*S); }
+function xOf(z,[L,M,S]){ return Math.abs(L)<1e-6 ? M*Math.exp(S*z) : M*Math.pow(1+L*S*z,1/L); }
+function ncdf(z){ const t1=1/(1+0.2316419*Math.abs(z)); const d=0.3989423*Math.exp(-z*z/2); let p=d*t1*(0.3193815+t1*(-0.3565638+t1*(1.781478+t1*(-1.821256+t1*1.330274)))); return z>0?1-p:p; }
+function percentile(metric, sex, ageM, x){ const l = lmsAt(metric, sex, ageM); if(!l || !x) return null; const p = ncdf(zOf(x,l))*100; return p<1 ? '<1' : p>99 ? '>99' : String(Math.round(p)); }
+
+const SCHEDULES = {
+  US:{
+    vaccineSource:'CDC child and adolescent immunization schedule',
+    growthSource:'WHO Child Growth Standards (0–2 y), CDC charts from 2 y',
+    milestoneSource:'CDC "Learn the Signs. Act Early." milestones',
+    vaccines:[
+      {age:0, items:['Hepatitis B (1st dose)']},
+      {age:1, items:['Hepatitis B (2nd dose)']},
+      {age:2, items:['Rotavirus (1st)','DTaP (1st)','Hib (1st)','Pneumococcal PCV (1st)','Polio IPV (1st)']},
+      {age:4, items:['Rotavirus (2nd)','DTaP (2nd)','Hib (2nd)','Pneumococcal PCV (2nd)','Polio IPV (2nd)']},
+      {age:6, items:['DTaP (3rd)','Pneumococcal PCV (3rd)','Hepatitis B (3rd)','Polio IPV (3rd)','Influenza (yearly)']},
+      {age:12, items:['MMR (1st)','Varicella (1st)','Hepatitis A (1st)','Pneumococcal PCV (4th)','Hib (booster)']}
+    ],
+    checkups:[0.13,1,2,4,6,9,12,15,18,24]
+  },
+  CN:{
+    vaccineSource:'国家免疫规划疫苗儿童免疫程序 (China NIP)',
+    growthSource:'WS/T 423-2022 (prototype shows WHO data until the China tables are loaded)',
+    milestoneSource:'国家卫生健康委 儿童健康管理指南',
+    vaccines:[
+      {age:0, items:['乙肝疫苗 HepB (1)','卡介苗 BCG']},
+      {age:1, items:['乙肝疫苗 HepB (2)']},
+      {age:2, items:['脊灰灭活疫苗 IPV (1)']},
+      {age:3, items:['脊灰灭活疫苗 IPV (2)','百白破 DTaP (1)']},
+      {age:4, items:['脊灰减毒疫苗 bOPV (3)','百白破 DTaP (2)']},
+      {age:5, items:['百白破 DTaP (3)']},
+      {age:6, items:['乙肝疫苗 HepB (3)','A群流脑 MPSV-A (1)']},
+      {age:8, items:['麻腮风 MMR (1)','乙脑 JE (1)']},
+      {age:9, items:['A群流脑 MPSV-A (2)']}
+    ],
+    checkups:[1,3,6,8,12,18,24]
+  }
+};
+const MILESTONES = [
+  {age:2, items:{en:['Calms down when spoken to or picked up','Smiles when you talk to or smile at them','Holds head up when on tummy'], zh:['被抱起或听到说话时能安静下来','对着你说话或微笑时会微笑','趴着时能抬头']}},
+  {age:4, items:{en:['Smiles on their own to get your attention','Chuckles when you try to make them laugh','Holds head steady without support','Brings hands to mouth'], zh:['主动微笑引起你的注意','逗他时会咯咯笑','不扶也能稳稳抬头','会把手放到嘴边']}},
+  {age:6, items:{en:['Laughs','Rolls from tummy to back','Reaches to grab a toy they want','Leans on hands to support themselves when sitting'], zh:['会大声笑','能从趴着翻到躺着','会伸手抓想要的玩具','坐着时用手撑住身体']}},
+  {age:9, items:{en:['Sits without support','Looks when you call their name','Moves things from one hand to the other','Shows several facial expressions'], zh:['不需支撑能独坐','叫名字会回头看','能把东西从一只手换到另一只手','会做出多种表情']}},
+  {age:12, items:{en:['Waves "bye-bye"','Pulls up to stand','Walks holding on to furniture','Picks things up between thumb and pointer finger'], zh:['会挥手"再见"','能扶着站起来','扶着家具走','能用拇指和食指捏起东西']}},
+  {age:18, items:{en:['Walks without holding on','Tries to say three or more words','Scribbles','Copies you doing chores'], zh:['不用扶也能走','尝试说三个以上的词','会涂鸦','模仿大人做家务']}}
+];
+function vaccineList(child){
+  const sch = SCHEDULES[state.region]; const out = [];
+  sch.vaccines.forEach(g => g.items.forEach((name,i) => out.push({id:'v'+g.age+'_'+i, name, ageM:g.age, due: child.birth + g.age*MONTH_D*DAY})));
+  return out;
+}
+function vaccineStatus(child, v){
+  const rec = (state.vaccines[child.id]||{})[v.id];
+  if(rec) return rec.status;
+  const d = v.due - now();
+  if(d < -60*DAY) return 'unrecorded'; // added to the app later: no alarming reminders for old doses
+  if(d < -DAY) return 'overdue';
+  if(d < 7*DAY) return 'soon';
+  return 'upcoming';
+}
+function checkupList(child){
+  return SCHEDULES[state.region].checkups.map(m => ({ageM:m, due: child.birth + m*MONTH_D*DAY, label: m<1 ? (LANG==='zh'?'3–5 天体检':'3–5 day checkup') : (LANG==='zh' ? m+' 月龄体检' : m+'-month checkup')}));
+}
+
+/* ---------------- state ---------------- */
+const KEY = 'littlesteps.mvp.v1';
+let state;
+const blank = () => ({v:1, onboarded:false, lang:(navigator.language||'').toLowerCase().startsWith('zh')?'zh':'en', units:'metric', theme:'auto', bigText:false, feedEveryH:0, offline:false,
+  region:null, me:null, members:[], invites:[], children:[], active:null, entries:[], timers:{}, milestones:{}, customMilestones:{}, vaccines:{}});
+function load(){ try{ const s = localStorage.getItem(KEY); if(s) return Object.assign(blank(), JSON.parse(s)); }catch(e){} return blank(); }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+state = load(); LANG = state.lang;
+
+const ui = {step:'welcome', tab:'home', htab:'growth', sheet:null, dialog:null, toast:null, day:startOfDay(now()), lock:false, chartMetric:'weight', ob:{}};
+let toastTimer = null, undoSnap = null;
+
+const me = () => state.members.find(m => m.id===state.me) || {name:'You', id:'me'};
+const child = () => state.children.find(c => c.id===state.active) || state.children.find(c=>!c.archived);
+const liveChildren = () => state.children.filter(c => !c.archived);
+const memberName = id => { const m = state.members.find(x=>x.id===id); return m ? (m.id===state.me ? t('You') : m.name) : '—'; };
+const childEntries = (cid) => state.entries.filter(e => e.childId===cid);
+const lastOf = (cid, pred) => childEntries(cid).filter(pred).sort((a,b)=>b.start-a.start)[0];
+
+/* ---------------- theme ---------------- */
+function isNight(){ if(state.theme==='night') return true; if(state.theme==='day') return false; const h = new Date().getHours(); return h >= 19 || h < 7; }
+function applyTheme(){
+  document.documentElement.dataset.theme = isNight() ? 'night' : 'day';
+  document.documentElement.lang = LANG==='zh' ? 'zh-CN' : 'en';
+  document.documentElement.style.setProperty('--fs', state.bigText ? '19px' : '16px');
+  const m = document.querySelector('meta[name=theme-color]'); if(m) m.content = isNight() ? '#0F1B2D' : '#F7FAFD';
+}
+
+/* ---------------- demo seed ---------------- */
+function seedDemo(region){
+  state = blank(); state.lang = LANG; state.region = region || 'US'; state.onboarded = true;
+  const zh = state.region==='CN';
+  const emily = {id:'m_emily', name: zh?'妈妈 Emily':'Emily', role:'owner', joined: now()-45*DAY};
+  const wei = {id:'m_wei', name: zh?'爸爸 Wei':'Wei', role:'member', joined: now()-44*DAY};
+  const linda = {id:'m_linda', name: zh?'外婆 Linda':'Linda', role:'member', joined: now()-30*DAY};
+  state.members = [emily, wei, linda]; state.me = emily.id;
+  const birth = startOfDay(now() - 42*DAY);
+  const mia = {id:'c_mia', name:'Mia', sex:'girl', birth, bw:3.3, bl:50, bh:34, color:CHILD_COLORS[0]};
+  state.children = [mia]; state.active = mia.id;
+  // seven days of history
+  let side = 'left'; const E = [];
+  for(let d=7; d>=0; d--){
+    const day0 = startOfDay(now() - d*DAY);
+    for(let h=1; h<24; h+=3){
+      const ts = day0 + h*HOUR + ((d*7+h)%5)*6*MIN;
+      if(ts > now()-20*MIN) continue;
+      if(h===1 || h===22){ E.push({id:uid(), childId:mia.id, type:'feed', sub:'bottle', milk:'formula', ml:110+(d%3)*10, start:ts, by:wei.id}); }
+      else { const l = (12+(h%4)*2)*MIN, r=(10+(d%3)*3)*MIN; E.push({id:uid(), childId:mia.id, type:'feed', sub:'breast', first:side, left: side==='left'?l:r, right: side==='left'?r:l, start:ts, end:ts+l+r, by:emily.id}); side = side==='left'?'right':'left'; }
+      if(h%6===1 || h===10){ E.push({id:uid(), childId:mia.id, type:'diaper', sub: h%2?'wet':'both', start:ts+40*MIN, by: h<7? wei.id : (d%3===0? linda.id : emily.id)}); }
+      const sl = ts + 50*MIN, dur = (h>=19||h<7) ? (150+(d%4)*20)*MIN : (55+(h%3)*20)*MIN;
+      if(sl+dur < now()-5*MIN) E.push({id:uid(), childId:mia.id, type:'sleep', start:sl, end:sl+dur, night:(h>=19||h<7), by: h<7? wei.id : emily.id});
+    }
+  }
+  E.push({id:uid(), childId:mia.id, type:'growth', weight:3.9, length:53.5, head:36.4, start: birth+14*DAY+10*HOUR, by:emily.id});
+  E.push({id:uid(), childId:mia.id, type:'growth', weight:4.6, length:55.8, head:37.6, start: birth+33*DAY+10*HOUR, by:emily.id});
+  E.push({id:uid(), childId:mia.id, type:'visit', reason: zh?'1 月龄体检':'1-month checkup', clinic: zh?'社区卫生服务中心':'Sunrise Pediatrics, Dr. Patel', note: zh?'一切正常':'All normal. Vitamin D drops daily.', start: birth+33*DAY+10*HOUR, by:emily.id});
+  state.entries = E;
+  state.vaccines[mia.id] = {'v0_0':{status:'done', date:birth, clinic: zh?'市妇幼保健院':'St. Mary\'s Hospital'}};
+  if(zh) state.vaccines[mia.id]['v0_1'] = {status:'done', date:birth, clinic:'市妇幼保健院'};
+  state.vaccines[mia.id]['v1_0'] = {status:'done', date:birth+31*DAY, clinic: zh?'社区卫生服务中心':'Sunrise Pediatrics'};
+  state.milestones[mia.id] = {};
+  save();
+}
+
+/* ---------------- render ---------------- */
+const appEl = document.getElementById('app');
+function render(){
+  applyTheme();
+  let h = state.onboarded ? shell() : onboarding();
+  const sheetNew = ui.sheet && render.sheetKey !== ui.sheet.kind+(ui.sheet.id||''); render.sheetKey = ui.sheet ? ui.sheet.kind+(ui.sheet.id||'') : null;
+  if(ui.sheet) h += '<div class="scrim'+(sheetNew?' in':'')+'" data-act="closeSheet"></div><div class="sheet'+(sheetNew?' in':'')+'" role="dialog" aria-modal="true" aria-label="'+esc(sheetTitle())+'"><div class="grab"></div>'+sheet()+'</div>';
+  if(ui.dialog) h += '<div class="scrim" style="z-index:30"></div><div class="dialog" role="alertdialog" aria-modal="true">'+ui.dialog.html+'</div>';
+  if(ui.toast) h += toastHtml();
+  if(ui.lock) h += lockScreen();
+  const sy = $('.main') ? $('.main').scrollTop : 0;
+  const shy = $('.sheet') ? $('.sheet').scrollTop : 0;
+  // keep anything typed into an open sheet or onboarding form across re-renders
+  const kept = {}; const keyNow = (ui.sheet? ui.sheet.kind+(ui.sheet.id||'') : 'ob'+ui.step);
+  if(render.key === keyNow) appEl.querySelectorAll('form input:not([type=radio]):not([type=checkbox]):not([type=file]), form textarea').forEach(i=>{ if(i.name) kept[i.name] = i.value; });
+  appEl.innerHTML = h;
+  if(render.key === keyNow) appEl.querySelectorAll('form input:not([type=radio]):not([type=checkbox]):not([type=file]), form textarea').forEach(i=>{ if(i.name && i.name in kept) i.value = kept[i.name]; });
+  render.key = keyNow;
+  if($('.main')) $('.main').scrollTop = sy;
+  if($('.sheet')) $('.sheet').scrollTop = shy;
+  renderGuide();
+  tick();
+}
+
+/* ---- onboarding ---- */
+function onboarding(){
+  const s = ui.step, ob = ui.ob;
+  const prog = n => '<div class="steps" aria-hidden="true">'+[1,2,3].map(i=>'<i class="'+(i<=n?'on':'')+'"></i>').join('')+'</div>';
+  const langBtn = '<div class="row between"><span></span><button class="btn btn-ghost" style="min-height:40px;padding:6px 14px" data-act="toggleLang">'+(LANG==='zh'?'English':'中文')+'</button></div>';
+  if(s==='welcome') return '<div class="ob">'+langBtn+
+    '<div class="hero"><div class="logo">'+LOGO+'littleSteps</div>'+
+    '<h1 class="h1" style="font-size:2rem;max-width:12em">'+t("Log a baby's day in three taps.")+'</h1>'+
+    '<p class="muted" style="margin:0;max-width:22em">'+t('Feeds, sleep, diapers, growth and vaccines, shared live with everyone who cares for your baby. Works offline.')+'</p></div>'+
+    '<div style="flex:1"></div><div class="stack">'+
+    '<button class="btn btn-primary btn-block" data-act="ob" data-to="region">'+t('Get started')+'</button>'+
+    '<button class="btn btn-ghost btn-block" data-act="ob" data-to="join">'+t('Have an invite code?')+' '+t('Join a family')+'</button>'+
+    '<button class="link" style="align-self:center" data-act="demo">'+t('Try the demo family')+'</button></div></div>';
+  if(s==='region') return '<div class="ob">'+prog(1)+
+    '<h1 class="h1">'+t('Where does your family live?')+'</h1><p class="muted" style="margin:0">'+t("This decides where your data is stored and which growth charts and vaccine schedule you see. It can't be changed later.")+'</p>'+
+    '<div class="stack" role="radiogroup">'+[['US','🇺🇸','United States','CDC schedule · WHO/CDC charts · US servers'],['CN','🇨🇳','China','China NIP schedule · China growth standard · China servers']].map(r=>
+      '<button class="card row" role="radio" aria-checked="'+(ob.region===r[0])+'" data-act="pickRegion" data-v="'+r[0]+'" style="text-align:left;min-height:76px;'+(ob.region===r[0]?'border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)':'')+'"><span style="font-size:1.75rem" aria-hidden="true">'+r[1]+'</span><span><span class="h3" style="display:block">'+t(r[2])+'</span><span class="small muted">'+t(r[3])+'</span></span></button>').join('')+'</div>'+
+    '<div style="flex:1"></div><div class="row"><button class="btn btn-ghost" data-act="ob" data-to="welcome">'+t('Back')+'</button><button class="btn btn-primary" style="flex:1" data-act="ob" data-to="account" '+(ob.region?'':'disabled')+'>'+t('Continue')+'</button></div></div>';
+  if(s==='account'){
+    const us = ob.region==='US';
+    const methods = us ? [['apple','dark','Continue with Apple'],['google','','Continue with Google'],['email','','Continue with email']] : [['wechat','wechat','Continue with WeChat'],['phone','','Continue with phone number']];
+    let fields = '';
+    if(ob.method==='email') fields = '<label class="f">'+t('Email')+'<input class="input" name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label>';
+    if(ob.method==='phone') fields = '<div class="grid2" style="grid-template-columns:2fr 1fr;align-items:end"><label class="f">'+t('Phone number')+'<input class="input" name="phone" type="tel" required inputmode="tel" placeholder="138 0000 0000"></label><button type="button" class="btn btn-soft" data-act="sendCode">'+t('Send code')+'</button></div><label class="f">'+t('SMS code')+'<input class="input" name="sms" inputmode="numeric" required pattern="[0-9]{6}" maxlength="6" placeholder="6 digits"></label>';
+    return '<div class="ob">'+prog(2)+'<h1 class="h1">'+t('Create your account')+'</h1>'+
+      '<div class="stack">'+methods.map(m=>'<button class="signbtn '+m[1]+'" data-act="pickMethod" data-v="'+m[0]+'" aria-pressed="'+(ob.method===m[0])+'"'+(ob.method===m[0]?' style="outline:2px solid var(--primary);outline-offset:2px"':'')+'>'+t(m[2])+'</button>').join('')+'</div>'+
+      (ob.method ? '<form class="stack" data-form="account">'+fields+
+        '<label class="f">'+t('Your name')+'<input class="input" name="name" required maxlength="40" value="'+esc(ob.name||'')+'" autocomplete="given-name"></label>'+
+        '<label class="check"><input type="checkbox" name="consent" required><span>'+t('I am the parent or guardian and agree to the Privacy Policy. I consent to littleSteps storing my child\'s health information.')+' <button type="button" class="link" data-act="privacy">'+t('Privacy policy')+'</button></span></label>'+
+        '<button class="btn btn-primary btn-block">'+t('Continue')+'</button></form>' : '')+
+      '<div style="flex:1"></div><button class="btn btn-ghost" data-act="ob" data-to="region">'+t('Back')+'</button></div>';
+  }
+  if(s==='child') return '<div class="ob">'+prog(3)+'<h1 class="h1">'+t('Add your baby')+'</h1>'+childForm('addFirstChild')+'</div>';
+  if(s==='done'){
+    const c = state.children[0];
+    const next = vaccineList(c).find(v => vaccineStatus(c,v)!=='done');
+    return '<div class="ob"><div class="hero"><div style="width:72px;height:72px;border-radius:50%;background:var(--success-soft);color:var(--success);display:grid;place-items:center">'+ic('check',' width="40" height="40"')+'</div>'+
+      '<h1 class="h1">'+t("You're all set")+'</h1><p class="muted" style="margin:0">'+t('We added the vaccine schedule and checkup reminders for')+' <b>'+esc(c.name)+'</b>.</p></div>'+
+      '<div class="card stack"><div class="remind"><div class="ic blue">'+ic('syringe')+'</div><div><div class="h3">'+esc(next?next.name:'')+'</div><div class="small muted">'+(next? fmtDate(next.due,{month:'long',day:'numeric',year:'numeric'}):'')+'</div></div></div>'+
+      '<div class="remind"><div class="ic blue">'+ic('stetho')+'</div><div><div class="h3">'+esc(checkupList(c).find(x=>x.due>now()-DAY).label)+'</div><div class="small muted">'+fmtDate(checkupList(c).find(x=>x.due>now()-DAY).due,{month:'long',day:'numeric'})+'</div></div></div>'+
+      '<p class="disclaimer" style="margin:0">'+t('Source')+': '+esc(SCHEDULES[state.region].vaccineSource)+'. '+t('Not medical advice.')+'</p></div>'+
+      '<div style="flex:1"></div><button class="btn btn-primary btn-block" data-act="finishOb">'+t('Go to home')+'</button></div>';
+  }
+  if(s==='join') return '<div class="ob"><h1 class="h1">'+t('Join a family')+'</h1><p class="muted" style="margin:0">'+t('Enter the 6-digit code from your family')+'</p>'+
+    '<form class="stack" data-form="join"><input class="input code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required aria-label="'+t('Invite code')+'" placeholder="000000">'+
+    '<label class="f">'+t('Your name')+'<input class="input" name="name" required maxlength="40" value="Wei"></label>'+
+    '<label class="check"><input type="checkbox" name="consent" required><span>'+t('I am the parent or guardian and agree to the Privacy Policy. I consent to littleSteps storing my child\'s health information.')+'</span></label>'+
+    '<button class="btn btn-primary btn-block">'+t('Join')+'</button><p class="small muted" style="margin:0">Demo: any 6 digits joins the sample family (Mia, 6 weeks) as a co-parent.</p></form>'+
+    '<div style="flex:1"></div><button class="btn btn-ghost" data-act="ob" data-to="welcome">'+t('Back')+'</button></div>';
+  return '';
+}
+function childForm(form, c){
+  c = c || {};
+  const imp = state.units==='imperial';
+  const color = c.color || CHILD_COLORS[state.children.length % CHILD_COLORS.length];
+  return '<form class="stack" data-form="'+form+'" novalidate>'+
+    '<label class="f">'+t('Name')+'<input class="input" name="name" required maxlength="30" value="'+esc(c.name||'')+'"></label>'+
+    '<fieldset style="border:0;padding:0;margin:0"><legend class="small muted" style="font-weight:500;margin-bottom:6px">'+t('Sex')+'</legend><div class="seg">'+
+      ['girl','boy'].map(x=>'<label><input type="radio" name="sex" value="'+x+'" '+((c.sex||'girl')===x?'checked':'')+'><span>'+t(x==='girl'?'Girl':'Boy')+'</span></label>').join('')+'</div></fieldset>'+
+    '<label class="f">'+t('Birth date')+'<input class="input" name="birth" type="date" required max="'+toDateInput(now())+'" value="'+(c.birth?toDateInput(c.birth):'')+'"></label>'+
+    '<div class="grid3">'+
+      '<label class="f">'+t('Birth weight')+' ('+(imp?'lb':'kg')+')<input class="input" name="bw" type="number" step="0.01" min="0.5" max="'+(imp?14:6.5)+'" inputmode="decimal" value="'+(c.bw? (imp?(c.bw*2.20462).toFixed(2):c.bw):'')+'"></label>'+
+      '<label class="f">'+t('Birth length')+' ('+(imp?'in':'cm')+')<input class="input" name="bl" type="number" step="0.1" inputmode="decimal" value="'+(c.bl? (imp?(c.bl/2.54).toFixed(1):c.bl):'')+'"></label>'+
+      '<label class="f">'+t('Head size')+' ('+(imp?'in':'cm')+')<input class="input" name="bh" type="number" step="0.1" inputmode="decimal" placeholder="'+t('Optional')+'" value="'+(c.bh? (imp?(c.bh/2.54).toFixed(1):c.bh):'')+'"></label></div>'+
+    '<fieldset style="border:0;padding:0;margin:0"><legend class="small muted" style="font-weight:500;margin-bottom:6px">'+t('Colour tag')+'</legend><div class="swatches">'+
+      CHILD_COLORS.map((col,i)=>'<label><input type="radio" name="color" value="'+col+'" '+(col===color?'checked':'')+' aria-label="Colour '+(i+1)+'"><span style="background:'+col+'"></span></label>').join('')+'</div></fieldset>'+
+    '<p class="err small" role="alert" style="color:var(--alert);margin:0;min-height:1em"></p>'+
+    '<button class="btn btn-primary btn-block">'+t(c.id?'Save':'Add baby')+'</button></form>';
+}
+
+/* ---- app shell ---- */
+function shell(){
+  const kids = liveChildren(); const c = child();
+  const sw = '<div class="switcher" role="group" aria-label="'+t('Children')+'">'+kids.map(k=>
+    '<button class="chip" style="--ctag:'+k.color+'" aria-pressed="'+(c&&k.id===c.id)+'" data-act="switchChild" data-id="'+k.id+'"><span class="av" aria-hidden="true">'+esc(k.name.slice(0,1).toUpperCase())+'</span><span><span class="nm">'+esc(k.name)+'</span> <span class="ag">'+ageLabel(k.birth)+'</span></span></button>').join('')+'</div>';
+  const top = '<div class="top">'+sw+'<button class="iconbtn" aria-label="'+t('Settings')+'" data-act="sheet" data-kind="settings">'+ic('gear')+'</button></div>';
+  let body = '';
+  if(!c) body = '<div class="empty">'+ic('baby')+'<p>'+t('Add child')+'</p><button class="btn btn-primary" data-act="sheet" data-kind="addChild">'+t('Add child')+'</button></div>';
+  else if(ui.tab==='home') body = homeView(c);
+  else if(ui.tab==='timeline') body = timelineView(c);
+  else if(ui.tab==='health') body = healthView(c);
+  else if(ui.tab==='family') body = familyView();
+  const pending = state.entries.filter(e=>e.unsynced).length;
+  const off = state.offline ? '<div class="banner off" role="status">'+ic('cloudOff',' width="20" height="20"')+'<span>'+t('Offline · entries are saved on this phone and will sync')+(pending? ' ('+pending+')':'')+'</span></div>' : '';
+  const tabs = [['home','home','Home'],['timeline','list','Timeline'],['health','heart','Health'],['family','people','Family']];
+  return top+'<main class="main" id="main">'+(off?'<div style="margin-bottom:10px">'+off+'</div>':'')+body+'</main>'+
+    '<nav class="tabbar" aria-label="Main">'+tabs.map(x=>'<button data-act="tab" data-v="'+x[0]+'" aria-current="'+(ui.tab===x[0]?'page':'false')+'">'+ic(x[1])+t(x[2])+'</button>').join('')+'</nav>';
+}
+
+/* ---- home ---- */
+function homeView(c){
+  const tm = state.timers[c.id] || {};
+  const lf = lastOf(c.id, e=>e.type==='feed');
+  const ld = lastOf(c.id, e=>e.type==='diaper');
+  const ls = lastOf(c.id, e=>e.type==='sleep');
+  const feedDetail = lf ? feedSummary(lf) : '';
+  let h = '';
+  // reminders / warnings
+  const rem = remindersFor(c);
+  // running timers
+  if(tm.feed){
+    const long = now()-tm.feed.start > 4*HOUR;
+    h += '<div class="card running stack" style="margin-bottom:12px"><div class="row between"><div class="row"><span class="dot"></span><span class="h3">'+t('Feeding')+', '+t(tm.feed.side==='left'?'left side':'right side')+'</span></div><button class="link small" data-act="lockscreen">'+ic('lock',' width="14" height="14"')+' '+t('Lock screen')+'</button></div>'+
+      '<div class="live"><span class="t" data-since="'+tm.feed.start+'">00:00</span><span class="small muted">L <span data-side="left"></span> · R <span data-side="right"></span></span></div>'+
+      (long?'<div class="banner warn">'+t('Still running?')+'</div>':'')+
+      '<div class="row"><button class="btn btn-soft" style="flex:1" data-act="switchSide">'+t('Switch side')+'</button><button class="btn btn-primary" style="flex:1" data-act="stopFeed">'+t('Stop')+'</button></div></div>';
+  }
+  if(tm.sleep){
+    const long = now()-tm.sleep.start > 14*HOUR;
+    h += '<div class="card running stack" style="margin-bottom:12px"><div class="row between"><div class="row"><span class="dot"></span><span class="h3">'+t('Sleeping')+' · '+t(isNightTime(tm.sleep.start)?'Night sleep':'Nap')+'</span></div><button class="link small" data-act="lockscreen">'+ic('lock',' width="14" height="14"')+' '+t('Lock screen')+'</button></div>'+
+      '<div class="live"><span class="t" data-since="'+tm.sleep.start+'">00:00</span><span class="small muted">'+t('Start')+' '+fmtTime(tm.sleep.start)+(tm.sleep.by && tm.sleep.by!==state.me? ' · '+esc(memberName(tm.sleep.by)) : '')+'</span></div>'+
+      (long?'<div class="banner warn">'+t('Still running?')+' <button class="link" data-act="sheet" data-kind="adjustSleep">'+t('End')+'…</button></div>':'')+
+      '<button class="btn btn-primary" data-act="stopSleep">'+t('Stop sleep')+'</button></div>';
+  }
+  // status cards
+  h += '<div class="status">'+
+    '<div class="stat"><span class="k">'+t('Last feed')+'</span><span class="v" data-ago="'+(lf?lf.start:'')+'">'+(lf?ago(lf.start):t('none yet'))+'</span><span class="d">'+esc(feedDetail)+'</span></div>'+
+    '<div class="stat"><span class="k">'+t('Sleep now')+'</span><span class="v">'+(tm.sleep? '<span data-since-short="'+tm.sleep.start+'"></span>' : t('Awake'))+'</span><span class="d">'+(tm.sleep? t('Asleep') : ls? t('Awake')+' '+fmtDur(now()-ls.end) : '')+'</span></div>'+
+    '<div class="stat"><span class="k">'+t('Last diaper')+'</span><span class="v">'+(ld?ago(ld.start):t('none yet'))+'</span><span class="d">'+(ld? t(cap(ld.sub)) + (ld.by!==state.me?' · '+esc(memberName(ld.by)):'') : '')+'</span></div></div>';
+  if(lf && lf.by !== state.me) h += '<p class="small muted" style="margin:8px 2px 0">'+esc(memberName(lf.by))+' · '+fmtTime(lf.start)+' · '+esc(feedSummary(lf))+'</p>';
+  if(rem.length) h += '<div class="section"><h2 class="h2">'+t('Reminders')+'</h2><div class="card stack">'+rem.map(r=>
+      '<div class="remind"><div class="ic '+(r.urgent?'':'blue')+'">'+ic(r.icon)+'</div><div style="flex:1;min-width:0"><div class="h3">'+esc(r.title)+'</div><div class="small muted">'+esc(r.sub)+'</div></div>'+(r.act?'<button class="btn btn-soft" style="min-height:40px;padding:6px 12px;font-size:.875rem" data-act="'+r.act+'" '+(r.data||'')+'>'+esc(r.btn)+'</button>':'')+'</div>').join('')+'</div></div>';
+  // quick log
+  const sugg = suggestedSide(c.id);
+  h += '<div class="section"><div class="row between" style="margin-bottom:10px"><h2 class="h2">'+t('Quick log')+'</h2>'+
+       (liveChildren().length>1 ? '<label class="check small"><input type="checkbox" data-act="toggleBoth" '+(ui.both?'checked':'')+'><span>'+t('Log for both')+'</span></label>' : '')+'</div>'+
+    '<div class="quick">'+
+      qb('feed','Feed', tm.feed? t('Feeding') : t('Next side')+': '+t(sugg==='left'?'Left':'Right'), 'sheet','data-kind="feed"')+
+      qb('sleep','Sleep', tm.sleep? t('Stop sleep') : t('Start sleep'), tm.sleep?'stopSleep':'startSleep','')+
+      qb('diaper','Diaper', ld? t('Last diaper')+' '+fmtTime(ld.start) : '', 'sheet','data-kind="diaper"')+
+      qb('growth','Growth', '', 'sheet','data-kind="growth"')+
+      '<button class="qbtn wide" data-act="sheet" data-kind="more"><span class="ic">'+ic('more')+'</span><span>'+t('More')+'<small>'+t('Milestone')+' · '+t('Vaccine')+' · '+t('Doctor visit')+' · '+t('Solids')+' · '+t('Note')+'</small></span></button>'+
+    '</div></div>';
+  return h;
+}
+function qb(icon,label,sub,act,data){ return '<button class="qbtn" data-act="'+act+'" '+data+'><span class="ic">'+ic(icon)+'</span><span>'+t(label)+(sub?'<small>'+esc(sub)+'</small>':'')+'</span></button>'; }
+function cap(s){ return s ? s[0].toUpperCase()+s.slice(1) : ''; }
+function isNightTime(ts){ const h = new Date(ts).getHours(); return h>=19 || h<7; }
+function suggestedSide(cid){ const l = lastOf(cid, e=>e.type==='feed' && e.sub==='breast'); return l && l.first==='left' ? 'right' : 'left'; }
+function feedSummary(e){
+  if(e.sub==='breast') return t('Breast')+' · L '+fmtDur(e.left||0)+' · R '+fmtDur(e.right||0);
+  if(e.sub==='bottle') return fmtVol(e.ml)+' '+t(e.milk==='formula'?'Formula':'Breast milk').toLowerCase();
+  if(e.sub==='solids') return t('Solids')+' · '+(e.food||'');
+  return '';
+}
+function remindersFor(c){
+  const out = [];
+  if(c.archived) return out;
+  vaccineList(c).forEach(v=>{
+    const st = vaccineStatus(c,v);
+    if(st==='overdue' || st==='soon') out.push({icon:'syringe', urgent: st==='overdue', title:v.name, sub:(st==='overdue'? t('Overdue') : t('Due soon'))+' · '+fmtDate(v.due,{month:'short',day:'numeric'}), act:'sheet', data:'data-kind="vaccine" data-id="'+v.id+'"', btn:t('Mark done')});
+  });
+  const cu = checkupList(c).find(x => x.due > now()-2*DAY && x.due < now()+10*DAY && !childEntries(c.id).some(e=>e.type==='visit' && Math.abs(e.start-x.due)<14*DAY));
+  if(cu) out.push({icon:'stetho', title:cu.label, sub:fmtDate(cu.due,{weekday:'short',month:'short',day:'numeric'}), act:'sheet', data:'data-kind="visit"', btn:t('Add visit')});
+  if(state.feedEveryH){ const lf = lastOf(c.id, e=>e.type==='feed'); if(lf && now()-lf.start > state.feedEveryH*HOUR) out.push({icon:'bell', urgent:true, title:t('Feeding is due'), sub:t('Last feed')+' '+ago(lf.start)}); }
+  return out.slice(0,4);
+}
+
+/* ---- timeline ---- */
+function entryView(e){
+  const kid = state.children.find(c=>c.id===e.childId);
+  let icon='note', ttl='', sub='';
+  if(e.type==='feed'){ icon='feed'; ttl = e.sub==='breast'? t('Breast') : e.sub==='bottle'? t('Bottle') : t('Solids'); sub = e.sub==='breast' ? 'L '+fmtDur(e.left||0)+' · R '+fmtDur(e.right||0) : e.sub==='bottle' ? fmtVol(e.ml)+' · '+t(e.milk==='formula'?'Formula':'Breast milk') : esc(e.food||'')+(e.amount?' · '+esc(e.amount):''); }
+  if(e.type==='sleep'){ icon='sleep'; ttl = t(e.night?'Night sleep':'Nap'); sub = fmtDur(e.end-e.start)+' · '+fmtTime(e.start)+'–'+fmtTime(e.end); }
+  if(e.type==='diaper'){ icon='diaper'; ttl = t('Diaper'); sub = t(cap(e.sub)); }
+  if(e.type==='growth'){ icon='growth'; ttl = t('Growth'); sub = [e.weight?fmtWeight(e.weight):'', e.length?fmtLen(e.length):'', e.head?fmtLen(e.head):''].filter(Boolean).join(' · '); }
+  if(e.type==='visit'){ icon='stetho'; ttl = t('Doctor visit'); sub = esc(e.reason||'')+(e.clinic?' · '+esc(e.clinic):''); }
+  if(e.type==='milestone'){ icon='star'; ttl = t('Milestone'); sub = esc(e.title||''); }
+  if(e.type==='vaccine'){ icon='syringe'; ttl = t('Vaccine'); sub = esc(e.title||''); }
+  if(e.type==='note'){ icon='note'; ttl = t('Note'); sub = ''; }
+  if(e.note && e.type!=='visit') sub += (sub?' · ':'')+esc(e.note);
+  const multi = liveChildren().length>1;
+  return '<button class="entry" data-act="editEntry" data-id="'+e.id+'"><span class="ic">'+ic(icon)+'</span><span class="body"><span class="ttl">'+(multi?'<span class="ctag" style="background:'+(kid?kid.color:'#ccc')+'"></span>':'')+ttl+'</span><span class="sub" style="display:block">'+sub+'</span></span>'+
+    '<span class="tm">'+fmtTime(e.start)+'<br><span class="small">'+esc(memberName(e.by))+(e.unsynced?' · ⟳':'')+'</span></span></button>';
+}
+function timelineView(c){
+  const d0 = ui.day, d1 = d0 + DAY;
+  const list = childEntries(c.id).filter(e => e.start>=d0 && e.start<d1).sort((a,b)=>b.start-a.start);
+  const tot = dayTotals(c.id, d0);
+  const isToday = d0===startOfDay(now()), isYest = d0===startOfDay(now()-DAY);
+  let h = '<div class="row between" style="margin-bottom:12px"><button class="iconbtn" aria-label="Previous day" data-act="day" data-v="-1">'+ic('chevL')+'</button>'+
+    '<div style="text-align:center"><div class="h2">'+(isToday?t('Today'):isYest?t('Yesterday'):fmtDate(d0,{weekday:'long'}))+'</div><div class="small muted">'+fmtDate(d0,{month:'long',day:'numeric'})+'</div></div>'+
+    '<button class="iconbtn" aria-label="Next day" data-act="day" data-v="1" '+(isToday?'disabled style="opacity:.4"':'')+'>'+ic('chevR')+'</button></div>';
+  h += '<div class="totals">'+[[tot.feeds,'Feeds'],[fmtVol(tot.ml),'Bottle'],[(tot.sleep/HOUR).toFixed(1),'Sleep hrs'],[tot.diapers,'Diapers']].map(x=>'<div class="stat"><span class="v">'+x[0]+'</span><span class="k">'+t(x[1])+'</span></div>').join('')+'</div>';
+  h += '<div class="card" style="margin-top:12px;padding-top:4px;padding-bottom:4px">'+(list.length? list.map(entryView).join('') : '<div class="empty">'+t('No entries this day.')+'</div>')+'</div>';
+  h += '<p class="small muted" style="margin:8px 2px">'+t('Wrong child? Every entry can be moved.')+'</p>';
+  h += '<div class="section"><h2 class="h2">'+t('Last 7 days')+'</h2><div class="card">'+trendChart(c.id)+'</div></div>';
+  return h;
+}
+function dayTotals(cid, d0){
+  const d1 = d0+DAY; const es = childEntries(cid);
+  const r = {feeds:0, ml:0, sleep:0, diapers:0};
+  es.forEach(e=>{
+    if(e.type==='feed' && e.start>=d0 && e.start<d1){ r.feeds++; if(e.sub==='bottle') r.ml += e.ml||0; }
+    if(e.type==='diaper' && e.start>=d0 && e.start<d1) r.diapers++;
+    if(e.type==='sleep'){ const s=Math.max(e.start,d0), en=Math.min(e.end,d1); if(en>s) r.sleep += en-s; }
+  });
+  return r;
+}
+function trendChart(cid){
+  const days = []; for(let i=6;i>=0;i--){ const d0=startOfDay(now()-i*DAY); days.push({d0, ...dayTotals(cid,d0)}); }
+  const W=340, H=150, pad=24, bw=(W-pad*2)/7;
+  const maxF = Math.max(10, ...days.map(d=>d.feeds)), maxS = Math.max(16, ...days.map(d=>d.sleep/HOUR));
+  let s = '<svg class="chart" viewBox="0 0 '+W+' '+(H+34)+'" role="img" aria-label="'+t('Last 7 days')+': '+days.map(d=>fmtDate(d.d0,{weekday:'short'})+' '+d.feeds+' '+t('Feeds')+', '+(d.sleep/HOUR).toFixed(1)+' h').join('; ')+'">';
+  days.forEach((d,i)=>{
+    const x = pad+i*bw; const fh = (d.feeds/maxF)*(H-20), sh = (d.sleep/HOUR/maxS)*(H-20);
+    s += '<rect x="'+(x+bw*0.14)+'" y="'+(H-fh)+'" width="'+(bw*0.32)+'" height="'+fh+'" rx="3" fill="var(--primary)"/>';
+    s += '<rect x="'+(x+bw*0.52)+'" y="'+(H-sh)+'" width="'+(bw*0.32)+'" height="'+sh+'" rx="3" fill="var(--accent)"/>';
+    s += '<text x="'+(x+bw/2)+'" y="'+(H+14)+'" text-anchor="middle">'+fmtDate(d.d0,{weekday:'narrow'})+'</text>';
+  });
+  s += '<line x1="'+pad+'" x2="'+(W-pad)+'" y1="'+H+'" y2="'+H+'" stroke="var(--line)"/>';
+  s += '<rect x="'+pad+'" y="'+(H+24)+'" width="10" height="10" rx="2" fill="var(--primary)"/><text x="'+(pad+14)+'" y="'+(H+33)+'">'+t('Feeds')+'</text>';
+  s += '<rect x="'+(pad+90)+'" y="'+(H+24)+'" width="10" height="10" rx="2" fill="var(--accent)"/><text x="'+(pad+104)+'" y="'+(H+33)+'">'+t('Sleep hrs')+'</text></svg>';
+  return s;
+}
+
+/* ---- health ---- */
+function healthView(c){
+  const tabs = [['growth','Growth'],['milestones','Milestones'],['vaccines','Vaccines'],['visits','Visits']];
+  let h = '<div class="tabs" role="group">'+tabs.map(x=>'<button aria-pressed="'+(ui.htab===x[0])+'" data-act="htab" data-v="'+x[0]+'">'+t(x[1])+'</button>').join('')+'</div><div style="margin-top:14px">';
+  if(ui.htab==='growth') h += growthView(c);
+  if(ui.htab==='milestones') h += milestonesView(c);
+  if(ui.htab==='vaccines') h += vaccinesView(c);
+  if(ui.htab==='visits') h += visitsView(c);
+  return h+'</div>';
+}
+function growthPoints(c){
+  const pts = [{start:c.birth, weight:c.bw, length:c.bl, head:c.bh}];
+  childEntries(c.id).filter(e=>e.type==='growth').sort((a,b)=>a.start-b.start).forEach(e=>pts.push(e));
+  return pts;
+}
+function growthView(c){
+  const pts = growthPoints(c); const last = {};
+  pts.forEach(p=>{ ['weight','length','head'].forEach(k=>{ if(p[k]) last[k] = {v:p[k], at:p.start}; }); });
+  const fmt = {weight:fmtWeight, length:fmtLen, head:fmtLen};
+  const lbl = {weight:'Weight', length:'Length', head:'Head size'};
+  let h = '<div class="grid3">'+['weight','length','head'].map(k=>{
+    const l = last[k]; const p = l ? percentile(k, c.sex, ageMonths(c.birth, l.at), l.v) : null;
+    return '<div class="stat"><span class="k">'+t(lbl[k])+'</span><span class="v">'+(l?fmt[k](l.v):'—')+'</span><span class="d">'+(p? ordinal(p)+(LANG==='zh'?' 百分位':' percentile'):'')+'</span></div>';
+  }).join('')+'</div>';
+  h += '<div class="card" style="margin-top:12px"><div class="row between wrap" style="margin-bottom:6px"><h2 class="h3">'+t('Growth chart')+'</h2><div class="seg" style="padding:3px">'+
+    ['weight','length','head'].map(k=>'<button style="min-height:34px;font-size:.8125rem;padding:2px 10px" aria-pressed="'+(ui.chartMetric===k)+'" data-act="chartMetric" data-v="'+k+'">'+t(lbl[k])+'</button>').join('')+'</div></div>'+
+    growthChart(c, ui.chartMetric, pts)+
+    '<p class="disclaimer">'+t('Source')+': '+esc(SCHEDULES[state.region].growthSource)+'. Curves: 3rd, 15th, 50th, 85th, 97th percentiles. Prototype includes 0–12 months only. '+t('Not medical advice.')+' Results for babies born early may differ from what your doctor uses.</p></div>';
+  h += '<button class="btn btn-primary btn-block" style="margin-top:12px" data-act="sheet" data-kind="growth">'+ic('plus',' width="20" height="20"')+t('Add measurement')+'</button>';
+  return h;
+}
+function growthChart(c, metric, pts){
+  const W=340, H=220, L=34, R=10, T=10, B=26, maxM=12;
+  const sex = c.sex; const lo = xOf(-2.4, lmsAt(metric,sex,0)), hi = xOf(2.4, lmsAt(metric,sex,12));
+  const yMin = Math.floor(lo), yMax = Math.ceil(hi);
+  const X = m => L + (m/maxM)*(W-L-R), Y = v => T + (1-(v-yMin)/(yMax-yMin))*(H-T-B);
+  let s = '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+t('Growth chart')+'">';
+  const step = metric==='weight' ? 2 : 5;
+  for(let v=Math.ceil(yMin/step)*step; v<=yMax; v+=step){ s += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(Y(v)+3)+'" text-anchor="end">'+(state.units==='imperial'? (metric==='weight'? (v*2.20462).toFixed(0):(v/2.54).toFixed(0)) : v)+'</text>'; }
+  for(let m=0;m<=12;m+=2) s += '<text x="'+X(m)+'" y="'+(H-8)+'" text-anchor="middle">'+m+(m===12?(LANG==='zh'?'月':' mo'):'')+'</text>';
+  [[-1.881,.45],[-1.036,.7],[0,1],[1.036,.7],[1.881,.45]].forEach(([z,o])=>{
+    let d=''; for(let m=0;m<=12;m+=0.25){ d += (m?'L':'M')+X(m).toFixed(1)+' '+Y(xOf(z,lmsAt(metric,sex,m))).toFixed(1); }
+    s += '<path d="'+d+'" fill="none" stroke="var(--primary)" stroke-opacity="'+o+'" stroke-width="'+(z===0?2:1.3)+'"'+(z===0?'':' stroke-dasharray="4 3"')+'/>';
+  });
+  const p = pts.filter(x=>x[metric]).map(x=>({m:ageMonths(c.birth,x.start), v:x[metric]})).filter(x=>x.m<=12);
+  if(p.length>1) s += '<path d="'+p.map((q,i)=>(i?'L':'M')+X(q.m).toFixed(1)+' '+Y(q.v).toFixed(1)).join('')+'" fill="none" stroke="var(--text)" stroke-width="2"/>';
+  p.forEach(q=> s += '<circle cx="'+X(q.m)+'" cy="'+Y(q.v)+'" r="4.5" fill="var(--accent)" stroke="var(--text)" stroke-width="1.5"/>');
+  return s+'</svg>';
+}
+function milestonesView(c){
+  const done = state.milestones[c.id] || {}; const age = ageMonths(c.birth);
+  const lang = LANG==='zh'?'zh':'en';
+  let h = '';
+  const groups = MILESTONES.map(g=>({age:g.age, items:g.items[lang].map((txt,i)=>({id:'m'+g.age+'_'+i, txt}))}));
+  const custom = state.customMilestones[c.id] || [];
+  if(custom.length) groups.push({age:null, items:custom});
+  groups.forEach(g=>{
+    const cur = g.age!=null && age <= g.age && age > g.age - (g.age<=6?2.01:3.01);
+    h += '<div class="section" style="margin-top:14px"><div class="row between" style="margin-bottom:8px"><h2 class="h3">'+(g.age==null? t('Custom milestone') : t('Usually by')+' '+g.age+' '+t('months'))+'</h2>'+(cur?'<span class="badge acc">'+(LANG==='zh'?'当前阶段':'Now')+'</span>':'')+'</div><div class="card" style="padding-top:2px;padding-bottom:2px">'+
+      g.items.map(it=>{ const d = done[it.id]; return '<div class="mrow"><button class="tick" role="checkbox" aria-checked="'+(!!d)+'" aria-label="'+esc(it.txt)+'" data-act="tickMilestone" data-id="'+it.id+'" data-txt="'+esc(it.txt)+'">'+(d?ic('check'):'')+'</button><div style="flex:1"><div>'+esc(it.txt)+'</div>'+(d?'<div class="small muted">'+fmtDate(d.date,{month:'short',day:'numeric',year:'numeric'})+(d.photo?' · 📷':'')+(d.note?' · '+esc(d.note):'')+'</div>':'')+'</div></div>'; }).join('')+'</div></div>';
+  });
+  h += '<button class="btn btn-ghost btn-block section" data-act="sheet" data-kind="customMilestone">'+ic('plus',' width="20" height="20"')+t('Custom milestone')+'</button>';
+  h += '<p class="disclaimer">'+t('Source')+': '+esc(SCHEDULES[state.region].milestoneSource)+'. Every child develops at their own pace. '+t('Not medical advice.')+'</p>';
+  return h;
+}
+function vaccinesView(c){
+  const vs = vaccineList(c);
+  const groups = {};
+  vs.forEach(v=>{ (groups[v.ageM] = groups[v.ageM]||[]).push(v); });
+  let h = '';
+  Object.keys(groups).map(Number).sort((a,b)=>a-b).forEach(age=>{
+    const g = groups[age];
+    h += '<div class="section" style="margin-top:14px"><div class="row between" style="margin-bottom:8px"><h2 class="h3">'+(age===0?(LANG==='zh'?'出生时':'At birth'):age+' '+(age===1&&LANG!=='zh'?'month':t('months')))+'</h2><span class="small muted">'+fmtDate(g[0].due,{month:'short',day:'numeric',year:'numeric'})+'</span></div><div class="card" style="padding-top:2px;padding-bottom:2px">'+
+      g.map(v=>{ const st = vaccineStatus(c,v); const rec=(state.vaccines[c.id]||{})[v.id];
+        const badge = st==='done'?'<span class="badge ok">'+ic('check',' width="12" height="12"')+t('Done')+'</span>' : st==='skipped'?'<span class="badge">'+t('Skipped')+'</span>' : st==='overdue'?'<span class="badge warn">'+t('Overdue')+'</span>' : st==='soon'?'<span class="badge acc">'+t('Due soon')+'</span>' : st==='unrecorded'?'<span class="badge">'+(LANG==='zh'?'未记录':'Not recorded')+'</span>' : '<span class="badge">'+t('Upcoming')+'</span>';
+        return '<button class="mrow" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left" data-act="sheet" data-kind="vaccine" data-id="'+v.id+'"><div style="flex:1"><div>'+esc(v.name)+'</div>'+(rec&&rec.status==='done'?'<div class="small muted">'+fmtDate(rec.date,{month:'short',day:'numeric',year:'numeric'})+(rec.clinic?' · '+esc(rec.clinic):'')+'</div>':'')+'</div>'+badge+'</button>';
+      }).join('')+'</div></div>';
+  });
+  h += '<p class="disclaimer">'+t('Source')+': '+esc(SCHEDULES[state.region].vaccineSource)+'. Reminders arrive 3 days and 1 day before each due date. Dates follow the actual birth date. Your clinic may use a different schedule. '+t('Not medical advice.')+'</p>';
+  return h;
+}
+function visitsView(c){
+  const visits = childEntries(c.id).filter(e=>e.type==='visit').sort((a,b)=>b.start-a.start);
+  const cu = checkupList(c);
+  const next = cu.find(x=>x.due > now()-DAY);
+  let h = '';
+  if(next) h += '<div class="card remind"><div class="ic blue">'+ic('stetho')+'</div><div style="flex:1"><div class="small muted">'+t('Next checkup')+'</div><div class="h3">'+esc(next.label)+'</div><div class="small muted">'+fmtDate(next.due,{weekday:'short',month:'long',day:'numeric'})+'</div></div></div>';
+  h += '<button class="btn btn-primary btn-block" style="margin-top:12px" data-act="sheet" data-kind="visit">'+ic('plus',' width="20" height="20"')+t('Add visit')+'</button>';
+  h += '<div class="section"><h2 class="h2">'+t('Visits')+'</h2><div class="card" style="padding-top:2px;padding-bottom:2px">'+(visits.length? visits.map(entryView).join('') : '<div class="empty">—</div>')+'</div></div>';
+  h += '<div class="section"><h2 class="h2">'+t('Checkups')+'</h2><div class="card small" style="line-height:1.9">'+cu.map(x=>'<div class="row between"><span>'+esc(x.label)+'</span><span class="muted">'+fmtDate(x.due,{month:'short',day:'numeric',year:'numeric'})+'</span></div>').join('')+'</div></div>';
+  return h;
+}
+
+/* ---- family ---- */
+function familyView(){
+  const owner = me().role==='owner';
+  let h = '<h1 class="h1" style="margin-bottom:4px">'+t('Family')+'</h1><p class="small muted" style="margin:0 0 12px">'+t('Region')+': '+(state.region==='US'?t('United States'):t('China'))+'</p>';
+  h += '<div class="card" style="padding-top:2px;padding-bottom:2px">'+state.members.map(m=>{
+    const n = childEntries(child()?child().id:'').filter(e=>e.by===m.id).length;
+    return '<div class="mrow"><span class="av" style="width:40px;height:40px;border-radius:50%;background:var(--primary-soft);display:grid;place-items:center;font-weight:700">'+esc(m.name.replace(/^\S+\s(?=\S)/,'').slice(0,1))+'</span><div style="flex:1"><div class="h3">'+esc(m.name)+(m.id===state.me?' ('+t('You')+')':'')+'</div><div class="small muted">'+t(m.role==='owner'?'Owner':'Member')+' · '+n+' entries</div></div>'+
+      (owner && m.id!==state.me ? '<button class="link small" data-act="removeMember" data-id="'+m.id+'">'+t('Remove')+'</button>' : '')+'</div>';
+  }).join('')+'</div>';
+  h += '<button class="btn btn-primary btn-block" style="margin-top:12px" data-act="sheet" data-kind="invite">'+ic('plus',' width="20" height="20"')+t('Invite someone')+'</button>';
+  if(state.invites.length) h += '<div class="section"><h2 class="h3" style="margin-bottom:8px">'+t('Pending invites')+'</h2><div class="card" style="padding-top:2px;padding-bottom:2px">'+state.invites.map(iv=>'<div class="mrow"><div style="flex:1"><div class="h3" style="letter-spacing:.15em">'+iv.code+'</div><div class="small muted">'+(LANG==='zh'?'到期 ':'Expires ')+fmtDate(iv.exp,{month:'short',day:'numeric'})+'</div></div><button class="link small" data-act="acceptInvite" data-code="'+iv.code+'">'+t('Simulate: they accept')+'</button><button class="link small" style="margin-left:10px" data-act="revoke" data-code="'+iv.code+'">'+t('Revoke')+'</button></div>').join('')+'</div></div>';
+  h += '<div class="section"><h2 class="h2">'+t('Children')+'</h2><div class="card" style="padding-top:2px;padding-bottom:2px">'+state.children.map(k=>
+    '<div class="mrow"><span style="width:40px;height:40px;border-radius:50%;background:'+k.color+';display:grid;place-items:center;font-weight:700;color:#1F2D3D">'+esc(k.name.slice(0,1))+'</span><div style="flex:1"><div class="h3">'+esc(k.name)+(k.archived?' · <span class="muted">'+(LANG==='zh'?'已归档':'Archived')+'</span>':'')+'</div><div class="small muted">'+ageLabel(k.birth)+' · '+fmtDate(k.birth,{year:'numeric',month:'short',day:'numeric'})+'</div></div><button class="link small" data-act="sheet" data-kind="editChild" data-id="'+k.id+'">'+(LANG==='zh'?'编辑':'Edit')+'</button></div>').join('')+'</div>'+
+    '<button class="btn btn-ghost btn-block" style="margin-top:12px" data-act="sheet" data-kind="addChild">'+ic('plus',' width="20" height="20"')+t('Add child')+'</button></div>';
+  h += '<div class="section card stack"><h2 class="h3">'+t('Leave and keep a copy')+'</h2><p class="small muted" style="margin:0">If you separate, either parent can take a full copy of the children\'s history into a new family in the same region. Entries after that are kept separately.</p><button class="btn btn-ghost" data-act="leaveCopy">'+t('Leave and keep a copy')+'</button></div>';
+  h += '<div class="section card stack"><h2 class="h3">'+t('Simulate partner log')+'</h2><p class="small muted" style="margin:0">Shows what happens when another member logs from their phone. It arrives here within 5 seconds.</p><button class="btn btn-soft" data-act="partnerLog">'+t('Simulate partner log')+'</button></div>';
+  return h;
+}
+
+/* ---- sheets ---- */
+function sheetTitle(){ const k = ui.sheet && ui.sheet.kind; return ({feed:'Feed',bottle:'Bottle',solids:'Solids',diaper:'Diaper',growth:'Add measurement',more:'More',visit:'Doctor visit',vaccine:'Vaccine',milestone:'Milestone',settings:'Settings',invite:'Invite someone',addChild:'Add child',editChild:'Edit',editEntry:'Edit entry',manualSleep:'Add a missed sleep',customMilestone:'Custom milestone',note:'Note',adjustSleep:'End',privacy:'Privacy policy'})[k] || ''; }
+function sheetHead(title){ return '<div class="sh"><h2 class="h2">'+t(title)+'</h2><button class="iconbtn" aria-label="'+t('Cancel')+'" data-act="closeSheet">'+ic('x')+'</button></div>'; }
+function timeField(name, ts, label){ return '<label class="f">'+t(label||'Time')+'<input class="input" type="datetime-local" name="'+name+'" value="'+toLocalInput(ts||now())+'" max="'+toLocalInput(now()+5*MIN)+'"></label>'; }
+function sheet(){
+  const s = ui.sheet, c = child(), k = s.kind;
+  const imp = state.units==='imperial';
+  if(k==='feed'){
+    const sugg = suggestedSide(c.id), tm = state.timers[c.id]||{};
+    const lb = lastOf(c.id, e=>e.type==='feed'&&e.sub==='bottle');
+    return sheetHead('Feed')+
+      '<p class="small muted" style="margin:0 0 8px">'+t('Breast')+'</p>'+
+      (tm.feed ? '<div class="banner warn" style="margin-bottom:10px">'+t('Feeding')+' · '+fmtDur(now()-tm.feed.start)+'</div>' :
+      '<div class="choice" style="grid-template-columns:1fr 1fr">'+['left','right'].map(sd=>'<button class="'+(sd===sugg?'sugg':'')+'" data-act="startFeed" data-side="'+sd+'">'+t(sd==='left'?'Start left':'Start right')+(sd===sugg?'<small>'+t('suggested')+'</small>':'')+'</button>').join('')+'</div>')+
+      '<p class="small muted" style="margin:14px 0 8px">'+t('Bottle')+' · '+t('Solids')+'</p><div class="choice" style="grid-template-columns:1fr 1fr">'+
+      '<button data-act="sheet" data-kind="bottle">'+ic('feed',' width="28" height="28"')+t('Bottle')+(lb?'<small>'+fmtVol(lb.ml)+'</small>':'')+'</button>'+
+      '<button data-act="sheet" data-kind="solids">'+ic('note',' width="28" height="28"')+t('Solids')+'</button></div>';
+  }
+  if(k==='bottle'){
+    const lb = lastOf(c.id, e=>e.type==='feed'&&e.sub==='bottle');
+    const ml = lb ? lb.ml : 90; const val = imp ? (ml/29.5735).toFixed(1) : Math.round(ml);
+    const milk = lb ? lb.milk : 'formula';
+    return sheetHead('Bottle')+'<form class="stack" data-form="bottle">'+
+      '<div class="seg">'+['breastmilk','formula'].map(x=>'<label><input type="radio" name="milk" value="'+x+'" '+(milk===x?'checked':'')+'><span>'+t(x==='formula'?'Formula':'Breast milk')+'</span></label>').join('')+'</div>'+
+      '<div class="big-amt"><button type="button" class="round" aria-label="Less" data-act="bump" data-v="'+(imp?-0.5:-10)+'">−</button><label class="sr" for="amt">'+t('Amount')+'</label><input id="amt" name="amt" type="number" inputmode="decimal" step="'+(imp?0.5:5)+'" value="'+val+'"><button type="button" class="round" aria-label="More" data-act="bump" data-v="'+(imp?0.5:10)+'">+</button></div>'+
+      '<p class="muted" style="text-align:center;margin:-6px 0 0">'+(imp?'oz':'ml')+'</p>'+timeField('time')+
+      '<button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  }
+  if(k==='solids') return sheetHead('Solids')+'<form class="stack" data-form="solids"><label class="f">'+t('Food')+'<input class="input" name="food" required maxlength="60" placeholder="'+(LANG==='zh'?'米粉':'Sweet potato')+'"></label><label class="f">'+t('Amount')+'<input class="input" name="amount" maxlength="30" placeholder="'+(LANG==='zh'?'2 勺':'2 spoons')+'"></label><label class="f">'+t('Reaction note')+'<textarea class="input" name="note" maxlength="200"></textarea></label>'+timeField('time')+'<button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  if(k==='diaper') return sheetHead('Diaper')+'<div class="choice">'+['wet','dirty','both'].map(x=>'<button data-act="logDiaper" data-v="'+x+'">'+ic('diaper',' width="28" height="28"')+t(cap(x))+'<small>'+fmtTime(now())+'</small></button>').join('')+'</div>';
+  if(k==='growth') return sheetHead('Add measurement')+'<form class="stack" data-form="growth"><div class="grid3">'+
+      '<label class="f">'+t('Weight')+' ('+(imp?'lb':'kg')+')<input class="input" name="weight" type="number" step="0.01" inputmode="decimal"></label>'+
+      '<label class="f">'+t('Length')+' ('+(imp?'in':'cm')+')<input class="input" name="length" type="number" step="0.1" inputmode="decimal"></label>'+
+      '<label class="f">'+t('Head size')+' ('+(imp?'in':'cm')+')<input class="input" name="head" type="number" step="0.1" inputmode="decimal"></label></div>'+
+      timeField('time', now(), 'Date')+'<p class="err small" role="alert" style="color:var(--alert);margin:0;min-height:1em"></p><button class="btn btn-primary btn-block">'+t('Save')+'</button>'+
+      '<p class="disclaimer" style="margin:0">'+t('Not medical advice.')+' '+t('Source')+': '+esc(SCHEDULES[state.region].growthSource)+'.</p></form>';
+  if(k==='more') return sheetHead('More')+'<div class="choice">'+
+      [['milestones','star','Milestone'],['vaccines','syringe','Vaccine'],['visit','stetho','Doctor visit'],['solids','feed','Solids'],['manualSleep','sleep','Add a missed sleep'],['note','note','Note']].map(x=>
+        '<button data-act="'+(x[0]==='milestones'||x[0]==='vaccines'?'goHealth':'sheet')+'" data-kind="'+x[0]+'" data-v="'+x[0]+'">'+ic(x[1],' width="28" height="28"')+'<span style="font-size:.875rem;text-align:center">'+t(x[2])+'</span></button>').join('')+'</div>';
+  if(k==='manualSleep') return sheetHead('Add a missed sleep')+'<form class="stack" data-form="manualSleep">'+timeField('start', now()-2*HOUR, 'Start')+timeField('end', now()-HOUR, 'End')+'<p class="err small" role="alert" style="color:var(--alert);margin:0;min-height:1em"></p><button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  if(k==='adjustSleep'){ const tm = state.timers[c.id]||{}; return sheetHead('End')+'<form class="stack" data-form="adjustSleep">'+timeField('end', Math.min(now(), (tm.sleep?tm.sleep.start:now())+3*HOUR), 'End')+'<button class="btn btn-primary btn-block">'+t('Save')+'</button></form>'; }
+  if(k==='note') return sheetHead('Note')+'<form class="stack" data-form="note"><label class="f">'+t('Note')+'<textarea class="input" name="note" required maxlength="300"></textarea></label>'+timeField('time')+'<button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  if(k==='visit') return sheetHead('Doctor visit')+'<form class="stack" data-form="visit"><label class="f">'+t('Reason')+'<input class="input" name="reason" required maxlength="60" value="'+esc((checkupList(c).find(x=>x.due>now()-3*DAY)||{}).label||'')+'"></label><label class="f">'+t('Doctor or clinic')+'<input class="input" name="clinic" maxlength="60"></label><label class="f">'+t('Notes')+'<textarea class="input" name="note" maxlength="500"></textarea></label><label class="f">'+t('Photo')+' ('+t('Optional')+')<input class="input" name="photo" type="file" accept="image/*"></label>'+timeField('time', now(), 'Date')+'<button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  if(k==='vaccine'){
+    const v = vaccineList(c).find(x=>x.id===s.id); const rec = (state.vaccines[c.id]||{})[s.id];
+    return sheetHead('Vaccine')+'<div class="stack"><div><div class="h2">'+esc(v.name)+'</div><div class="small muted">'+(LANG==='zh'?'应接种 ':'Due ')+fmtDate(v.due,{month:'long',day:'numeric',year:'numeric'})+'</div></div>'+
+      '<form class="stack" data-form="vaccine" data-id="'+v.id+'"><label class="f">'+t('Date')+'<input class="input" type="date" name="date" required max="'+toDateInput(now())+'" value="'+toDateInput(rec&&rec.date||Math.min(now(),v.due))+'"></label><label class="f">'+t('Clinic')+'<input class="input" name="clinic" maxlength="60" value="'+esc(rec&&rec.clinic||'')+'"></label>'+
+      '<button class="btn btn-primary btn-block">'+t('Mark done')+'</button></form><div class="row"><button class="btn btn-ghost" style="flex:1" data-act="skipVaccine" data-id="'+v.id+'">'+t('Skip')+'</button>'+(rec?'<button class="btn btn-ghost" style="flex:1" data-act="clearVaccine" data-id="'+v.id+'">'+t('Undo')+'</button>':'')+'</div>'+
+      '<p class="disclaimer" style="margin:0">'+t('Source')+': '+esc(SCHEDULES[state.region].vaccineSource)+'. '+t('Not medical advice.')+'</p></div>';
+  }
+  if(k==='milestone') return sheetHead('Milestone')+'<form class="stack" data-form="milestone" data-id="'+esc(s.id)+'"><div class="h3">'+esc(s.txt)+'</div><label class="f">'+t('Date')+'<input class="input" type="date" name="date" required max="'+toDateInput(now())+'" value="'+toDateInput(now())+'"></label><label class="f">'+t('Photo')+' ('+t('Optional')+')<input class="input" type="file" name="photo" accept="image/*"></label><label class="f">'+t('Note')+'<input class="input" name="note" maxlength="120"></label><button class="btn btn-primary btn-block">'+t('Save')+'</button></form>';
+  if(k==='customMilestone') return sheetHead('Custom milestone')+'<form class="stack" data-form="customMilestone"><label class="f">'+t('Milestone')+'<input class="input" name="txt" required maxlength="80" placeholder="'+(LANG==='zh'?'第一次去海边':'First trip to the beach')+'"></label><button class="btn btn-primary btn-block">'+t('Add')+'</button></form>';
+  if(k==='invite'){
+    const iv = s.code;
+    return sheetHead('Invite someone')+'<div class="stack" style="align-items:center;text-align:center"><p class="muted" style="margin:0">'+t('Invite code')+'</p><div class="code">'+iv+'</div>'+qrSvg(iv)+
+      '<p class="small muted" style="margin:0">'+t('Valid for 7 days, single use.')+'</p><div class="row" style="width:100%"><button class="btn btn-soft" style="flex:1" data-act="copyLink" data-code="'+iv+'">'+t('Copy link')+'</button><button class="btn btn-primary" style="flex:1" data-act="acceptInvite" data-code="'+iv+'">'+t('Simulate: they accept')+'</button></div>'+
+      '<p class="small muted" style="margin:0">littlesteps.app/join/'+(state.region==='US'?'us':'cn')+'/'+iv+'</p></div>';
+  }
+  if(k==='addChild') return sheetHead('Add child')+childForm('addChild');
+  if(k==='editChild'){ const kid = state.children.find(x=>x.id===s.id); return sheetHead('Edit')+childForm('editChild', kid)+
+      '<div class="stack section"><button class="btn btn-ghost" data-act="archiveChild" data-id="'+kid.id+'">'+(kid.archived?(LANG==='zh'?'取消归档':'Unarchive'):t('Archive'))+'</button><p class="small muted" style="margin:0">Archiving stops all reminders and celebrations immediately. Data is kept privately.</p></div>'; }
+  if(k==='editEntry'){
+    const e = state.entries.find(x=>x.id===s.id); if(!e) return sheetHead('Edit entry');
+    let f = '';
+    if(e.type==='feed' && e.sub==='bottle') f += '<label class="f">'+t('Amount')+' ('+(imp?'oz':'ml')+')<input class="input" name="amt" type="number" step="0.5" value="'+(imp?(e.ml/29.5735).toFixed(1):Math.round(e.ml))+'"></label>';
+    if(e.type==='feed' && e.sub==='breast') f += '<div class="grid2"><label class="f">'+t('Left')+' (min)<input class="input" name="left" type="number" min="0" value="'+Math.round((e.left||0)/MIN)+'"></label><label class="f">'+t('Right')+' (min)<input class="input" name="right" type="number" min="0" value="'+Math.round((e.right||0)/MIN)+'"></label></div>';
+    if(e.type==='diaper') f += '<div class="seg">'+['wet','dirty','both'].map(x=>'<label><input type="radio" name="sub" value="'+x+'" '+(e.sub===x?'checked':'')+'><span>'+t(cap(x))+'</span></label>').join('')+'</div>';
+    f += timeField('start', e.start, e.type==='sleep'?'Start':'Time');
+    if(e.type==='sleep') f += timeField('end', e.end, 'End');
+    f += '<label class="f">'+t('Note')+'<input class="input" name="note" maxlength="200" value="'+esc(e.note||'')+'"></label>';
+    if(state.children.length>1) f += '<label class="f">'+t('Move to child')+'<select class="input" name="childId">'+state.children.map(k2=>'<option value="'+k2.id+'" '+(k2.id===e.childId?'selected':'')+'>'+esc(k2.name)+'</option>').join('')+'</select></label>';
+    return sheetHead('Edit entry')+'<p class="small muted" style="margin:-8px 0 10px">'+t('Logged by')+' '+esc(memberName(e.by))+(e.editedBy?' · edited by '+esc(memberName(e.editedBy)):'')+(e.unsynced?' · '+t('Not synced yet'):'')+'</p><form class="stack" data-form="editEntry" data-id="'+e.id+'">'+f+'<p class="err small" role="alert" style="color:var(--alert);margin:0;min-height:1em"></p><button class="btn btn-primary btn-block">'+t('Save')+'</button></form><button class="btn btn-danger btn-block" style="margin-top:10px" data-act="deleteEntry" data-id="'+e.id+'">'+t('Delete')+'</button>';
+  }
+  if(k==='settings'){
+    const o = (n,v,l,cur)=>'<label><input type="radio" name="'+n+'" value="'+v+'" data-act="setting" '+(cur===v?'checked':'')+'><span>'+l+'</span></label>';
+    return sheetHead('Settings')+'<div class="stack">'+
+      '<div class="card stack"><div class="row between"><div><div class="h3">'+esc(me().name)+'</div><div class="small muted">'+t('Region')+': '+(state.region==='US'?t('United States'):t('China'))+' · '+(LANG==='zh'?'无法更改':'fixed')+'</div></div></div></div>'+
+      '<div class="stack"><span class="small muted">'+t('Language')+'</span><div class="seg">'+o('lang','en','English',LANG)+o('lang','zh','简体中文',LANG)+'</div></div>'+
+      '<div class="stack"><span class="small muted">'+t('Units')+'</span><div class="seg">'+o('units','metric','kg · cm · ml',state.units)+o('units','imperial','lb · in · oz',state.units)+'</div></div>'+
+      '<div class="stack"><span class="small muted">'+t('Display')+'</span><div class="seg">'+o('theme','auto',LANG==='zh'?'自动':'Auto',state.theme)+o('theme','day',t('Day'),state.theme)+o('theme','night',t('Night'),state.theme)+'</div><span class="small muted">'+t('Auto (night after sunset)')+'</span></div>'+
+      '<label class="check"><input type="checkbox" data-act="setting" name="bigText" '+(state.bigText?'checked':'')+'><span>'+t('Larger text')+'</span></label>'+
+      '<label class="f">'+t('Feed-due reminder')+'<select class="input" data-act="setting" name="feedEveryH">'+[0,2,2.5,3,4].map(v=>'<option value="'+v+'" '+(state.feedEveryH==v?'selected':'')+'>'+(v? t('every')+' '+v+' '+t('hours') : t('Off'))+'</option>').join('')+'</select></label>'+
+      '<label class="check"><input type="checkbox" data-act="setting" name="offline" '+(state.offline?'checked':'')+'><span>'+t('Simulate offline')+'</span></label>'+
+      '<button class="btn btn-ghost" data-act="export">'+t('Export data (CSV)')+'</button>'+
+      '<button class="btn btn-ghost" data-act="privacy">'+t('Privacy policy')+'</button>'+
+      '<button class="btn btn-ghost" data-act="signOut">'+t('Sign out')+'</button>'+
+      '<button class="btn btn-danger" data-act="deleteAccount">'+t('Delete account and all data')+'</button>'+
+      '<p class="small muted" style="margin:0">littleSteps MVP prototype · data stays in this browser.</p></div>';
+  }
+  if(k==='privacy') return sheetHead('Privacy policy')+'<div class="stack small" style="line-height:1.6"><p style="margin:0">Prototype summary. Parents are the users; children\'s information is collected only with a parent\'s or guardian\'s consent (COPPA in the US, separate consent under PIPL in China).</p><p style="margin:0">Data is stored in your family\'s region only, encrypted in transit and at rest. Photos are kept in private storage. No ads SDKs. Analytics never include children\'s names.</p><p style="margin:0">You can export all data at any time and delete your account; deletion completes within 30 days.</p><button class="btn btn-primary" data-act="closeSheet">OK</button></div>';
+  return '';
+}
+function qrSvg(code){
+  let seed = 0; for(const ch of code) seed = (seed*31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => (seed = (seed*1103515245 + 12345) >>> 0) / 4294967296;
+  const N=21, c=6; let s='<svg class="qr" viewBox="0 0 '+N*c+' '+N*c+'" role="img" aria-label="QR code for invite '+code+'"><rect width="100%" height="100%" fill="#fff"/>';
+  const finder=(x,y)=>'<rect x="'+x*c+'" y="'+y*c+'" width="'+7*c+'" height="'+7*c+'" fill="#1F2D3D"/><rect x="'+(x+1)*c+'" y="'+(y+1)*c+'" width="'+5*c+'" height="'+5*c+'" fill="#fff"/><rect x="'+(x+2)*c+'" y="'+(y+2)*c+'" width="'+3*c+'" height="'+3*c+'" fill="#1F2D3D"/>';
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const inF=(x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12); if(!inF && rnd()>.52) s+='<rect x="'+x*c+'" y="'+y*c+'" width="'+c+'" height="'+c+'" fill="#1F2D3D"/>'; }
+  return s+finder(0,0)+finder(14,0)+finder(0,14)+'</svg>';
+}
+
+/* ---- toast, lock screen ---- */
+function toastHtml(){ const tt = ui.toast; const fresh = !tt.shown; tt.shown = true; return '<div class="toast'+(fresh?' in':'')+'" role="status" aria-live="polite"><span class="ok">'+ic('check')+'</span><span class="msg">'+esc(tt.msg)+'</span>'+(tt.action?'<button data-act="'+tt.action+'">'+esc(tt.label)+'</button>':'')+(tt.action2?'<button data-act="'+tt.action2+'">'+esc(tt.label2)+'</button>':'')+'</div>'; }
+function toast(msg, opts){
+  opts = opts||{}; clearTimeout(toastTimer);
+  ui.toast = Object.assign({msg}, opts);
+  toastTimer = setTimeout(()=>{ ui.toast=null; undoSnap=null; const el = appEl.querySelector('.toast'); if(el) el.remove(); }, opts.ms || 5000);
+}
+function lockScreen(){
+  const c = child(), tm = state.timers[c.id]||{};
+  const d = new Date();
+  let h = '<div class="lock" data-act="unlock" role="dialog" aria-label="'+t('Lock screen')+'"><div style="font-size:.875rem;color:#A9BCD4">'+d.toLocaleDateString(locale(),{weekday:'long',month:'long',day:'numeric'})+'</div><div class="clock" data-clock>'+d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'}).replace(/\s?[AP]M/,'')+'</div><div style="height:20px"></div>';
+  if(tm.feed) h += '<div class="la" data-stop><div class="row between"><span style="color:#F2D9A6;font-weight:600;font-size:.875rem">'+t('Feeding')+', '+t(tm.feed.side==='left'?'left side':'right side')+'</span><span class="small" style="color:#8FA6C4">littleSteps · '+esc(c.name)+'</span></div><div class="t" data-since="'+tm.feed.start+'">00:00</div><div class="row"><button data-act="switchSide">'+t('Switch side')+'</button><button class="pri" data-act="stopFeed">'+t('Stop')+'</button></div></div>';
+  if(tm.sleep) h += '<div class="la" data-stop><div class="row between"><span style="color:#F2D9A6;font-weight:600;font-size:.875rem">'+t('Sleeping')+'</span><span class="small" style="color:#8FA6C4">littleSteps · '+esc(c.name)+'</span></div><div class="t" data-since="'+tm.sleep.start+'">00:00</div><div class="row"><button class="pri" data-act="stopSleep">'+t('Stop')+'</button></div></div>';
+  if(!tm.feed && !tm.sleep) h += '<div class="notif">No live timers. Start a feed or sleep timer to see it here.</div>';
+  const lp = state.entries.filter(e=>e.childId===c.id && e.by!==state.me).sort((a,b)=>b.start-a.start)[0];
+  if(lp) h += '<div class="notif">littleSteps · '+esc(memberName(lp.by))+' · '+fmtTime(lp.start)+'</div>';
+  return h+'<div style="flex:1"></div><div class="small" style="color:#8FA6C4">'+t('Tap anywhere above to unlock')+'</div></div>';
+}
+
+/* ---- live tick ---- */
+function tick(){
+  document.querySelectorAll('[data-since]').forEach(el=>{ el.textContent = fmtDur(now()-(+el.dataset.since), true); });
+  document.querySelectorAll('[data-since-short]').forEach(el=>{ el.textContent = fmtDur(now()-(+el.dataset.sinceShort)); });
+  const c = child(); const tm = c && state.timers[c.id] && state.timers[c.id].feed;
+  if(tm){ const seg = sideTotals(tm); document.querySelectorAll('[data-side]').forEach(el=>{ el.textContent = fmtDur(seg[el.dataset.side], true); }); }
+  const cl = document.querySelector('[data-clock]'); if(cl) cl.textContent = new Date().toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'}).replace(/\s?[AP]M/,'');
+}
+setInterval(tick, 1000);
+setInterval(()=>{ if(state.onboarded && !ui.sheet && !ui.dialog && document.visibilityState==='visible') render(); }, 60000);
+function sideTotals(tm){
+  const r = {left:0,right:0}; const segs = tm.segs || [{side:tm.side,start:tm.start}];
+  segs.forEach((s,i)=>{ const end = segs[i+1] ? segs[i+1].start : (tm.end || now()); r[s.side] += end - s.start; });
+  return r;
+}
+
+/* ---------------- mutations ---------------- */
+function snapshot(){ undoSnap = JSON.stringify(state); }
+function addEntry(e, opts){
+  opts = opts||{};
+  const kids = (ui.both && liveChildren().length>1 && !opts.single) ? liveChildren() : [child()];
+  const link = kids.length>1 ? uid() : null;
+  const made = kids.map(k => Object.assign({id:uid(), childId:k.id, by:state.me, createdAt:now(), unsynced: state.offline || undefined, linkId:link||undefined}, e));
+  state.entries.push(...made);
+  save();
+  return made;
+}
+function savedToast(text, extra){
+  toast((text? text+' · ' : '')+t('Saved'), Object.assign({action:'undo', label:t('Undo')}, extra||{}));
+}
+function checkDuplicate(e){
+  const dup = state.entries.find(x => x.id!==e.id && x.childId===e.childId && x.type==='feed' && x.sub===e.sub && x.by!==e.by && Math.abs(x.start-e.start) < 10*MIN);
+  return dup;
+}
+function confirmDialog(msg, yesLabel, onYes){
+  ui.dialog = {html:'<div class="stack"><h2 class="h2">'+t('Please check')+'</h2><p style="margin:0">'+esc(msg)+'</p><div class="row"><button class="btn btn-ghost" style="flex:1" data-act="dlgNo">'+t('Cancel')+'</button><button class="btn btn-primary" style="flex:1" data-act="dlgYes">'+esc(yesLabel||t('Save anyway'))+'</button></div></div>', onYes};
+  render();
+  setTimeout(()=>{ const b = document.querySelector('[data-act="dlgYes"]'); if(b) b.focus(); }, 30);
+}
+function celebrate(text){
+  const reduced = isNight() || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const el = document.createElement('div'); el.className='celebrate'; el.setAttribute('aria-hidden','true');
+  let h = '<div class="msg">✦ '+esc(text)+'</div>';
+  if(!reduced) for(let i=0;i<34;i++){ const a = Math.random()*Math.PI*2, r = 90+Math.random()*150; h += '<i style="background:'+(i%2?'#4A90D9':'#F6D776')+';--dx:calc(-50% + '+(Math.cos(a)*r).toFixed(0)+'px);--dy:calc(-50% + '+(Math.sin(a)*r).toFixed(0)+'px);--r:'+(Math.random()*360|0)+'deg;animation-delay:'+(Math.random()*.15).toFixed(2)+'s"></i>'; }
+  el.innerHTML = h; appEl.appendChild(el); setTimeout(()=>el.remove(), 1600);
+  if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
+}
+function syncNow(){
+  const n = state.entries.filter(e=>e.unsynced).length;
+  state.entries.forEach(e=>{ delete e.unsynced; }); save();
+  if(n) toast(n+' '+(n===1 && LANG!=='zh' ? 'entry synced' : t('entries synced')), {ms:3000}); else toast(t('Back online'), {ms:2500});
+}
+function partnerLog(){
+  const c = child(); const other = state.members.find(m=>m.id!==state.me);
+  if(!other){ toast(LANG==='zh'?'先邀请一位家人':'Invite a family member first', {ms:3000}); render(); return; }
+  toast((LANG==='zh'?'正在同步…':'Syncing from ')+other.name+'…', {ms:3200}); render();
+  setTimeout(()=>{
+    const lb = lastOf(c.id, e=>e.type==='feed'&&e.sub==='bottle');
+    const e = {id:uid(), childId:c.id, type:'feed', sub:'bottle', milk: lb?lb.milk:'formula', ml: lb?lb.ml:120, start: now()-MIN, by:other.id, createdAt:now()};
+    state.entries.push(e); save();
+    toast(t('Synced from')+' '+other.name+': '+t('Bottle')+' '+fmtVol(e.ml)+' · 3 s', {ms:5000});
+    render();
+  }, 3000);
+}
+
+/* ---------------- actions ---------------- */
+const A = {
+  ob(el){ ui.step = el.dataset.to; render(); },
+  pickRegion(el){ ui.ob.region = el.dataset.v; render(); },
+  pickMethod(el){
+    ui.ob.method = el.dataset.v;
+    if(el.dataset.v==='apple' || el.dataset.v==='google' || el.dataset.v==='wechat') ui.ob.name = ui.ob.name || (ui.ob.region==='CN'?'Wei':'Emily');
+    render(); const f = document.querySelector('[data-form="account"] input'); if(f) f.focus();
+  },
+  sendCode(){ toast(LANG==='zh'?'验证码已发送（演示：123456）':'Code sent (demo: 123456)', {ms:3000}); render(); const i=document.querySelector('[name=sms]'); if(i){ i.value='123456'; } },
+  toggleLang(){ LANG = state.lang = LANG==='zh'?'en':'zh'; save(); render(); },
+  demo(){ seedDemo(ui.ob.region || (LANG==='zh'?'CN':'US')); ui.tab='home'; render(); toast(LANG==='zh'?'已载入示例家庭：Mia，6 周':'Demo family loaded: Mia, 6 weeks', {ms:3000}); render(); },
+  finishOb(){ state.onboarded = true; save(); ui.tab='home'; render(); },
+  tab(el){ ui.tab = el.dataset.v; if(ui.tab==='timeline') ui.day = startOfDay(now()); render(); const m=$('.main'); if(m) m.scrollTop=0; },
+  htab(el){ ui.htab = el.dataset.v; render(); },
+  goHealth(el){ ui.sheet=null; ui.tab='health'; ui.htab=el.dataset.v; render(); },
+  chartMetric(el){ ui.chartMetric = el.dataset.v; render(); },
+  switchChild(el){ state.active = el.dataset.id; save(); render(); },
+  toggleBoth(el){ ui.both = el.checked; },
+  sheet(el){ const kind = el.dataset.kind; ui.sheet = {kind, id: el.dataset.id};
+    if(kind==='invite'){ const code = String(Math.floor(100000+Math.random()*900000)); ui.sheet.code = code; state.invites.push({code, exp: now()+7*DAY}); save(); }
+    render(); setTimeout(()=>{ const f = document.querySelector('.sheet input:not([type=radio]):not([type=checkbox]):not([type=file]), .sheet .choice button'); if(f) f.focus(); }, 30); },
+  closeSheet(){ ui.sheet = null; render(); },
+  day(el){ ui.day = startOfDay(ui.day + (+el.dataset.v)*DAY + HOUR*2); render(); },
+  startFeed(el){
+    const c = child(); snapshot(); state.timers[c.id] = state.timers[c.id]||{};
+    state.timers[c.id].feed = {start:now(), side:el.dataset.side, first:el.dataset.side, segs:[{side:el.dataset.side, start:now()}], by:state.me};
+    save(); ui.sheet = null; render(); toast(t('Feeding')+' · '+t(el.dataset.side==='left'?'left side':'right side'), {ms:2500}); render();
+  },
+  switchSide(){ const c = child(); const tm = state.timers[c.id].feed; tm.side = tm.side==='left'?'right':'left'; tm.segs.push({side:tm.side, start:now()}); save(); render(); },
+  stopFeed(){
+    const c = child(); const tm = state.timers[c.id].feed; snapshot();
+    const tot = sideTotals(tm);
+    delete state.timers[c.id].feed;
+    const [e] = addEntry({type:'feed', sub:'breast', first:tm.first, left:tot.left, right:tot.right, start:tm.start, end:now()}, {single:true});
+    ui.lock = false; render(); savedToast(t('Breast')+' '+fmtDur(tot.left+tot.right)); render();
+  },
+  startSleep(){
+    const c = child(); state.timers[c.id] = state.timers[c.id]||{};
+    if(state.timers[c.id].sleep){ toast(t('Sleeping'),{ms:2000}); render(); return; }
+    snapshot(); state.timers[c.id].sleep = {start:now(), by:state.me}; save(); render(); savedToast(t('Start sleep')); render();
+  },
+  stopSleep(){
+    const c = child(); const tm = state.timers[c.id].sleep; snapshot(); delete state.timers[c.id].sleep;
+    addEntry({type:'sleep', start:tm.start, end:now(), night:isNightTime(tm.start)}, {single:true});
+    ui.lock=false; render(); savedToast(t('Sleep')+' '+fmtDur(now()-tm.start)); render();
+  },
+  logDiaper(el){ snapshot(); addEntry({type:'diaper', sub:el.dataset.v, start:now()}); ui.sheet=null; render(); savedToast(t('Diaper')+' · '+t(cap(el.dataset.v))); render(); },
+  bump(el){ const i = $('#amt'); i.value = Math.max(0, Math.round(((+i.value||0) + (+el.dataset.v))*10)/10); },
+  undo(){ if(undoSnap){ state = JSON.parse(undoSnap); undoSnap=null; save(); } clearTimeout(toastTimer); ui.toast=null; render(); },
+  mergeDup(){ const id = ui.toast && ui.toast.dupNew; state.entries = state.entries.filter(e=>e.id!==id); save(); clearTimeout(toastTimer); ui.toast=null; render(); toast(LANG==='zh'?'已合并':'Merged into one entry',{ms:2500}); render(); },
+  editEntry(el){ ui.sheet = {kind:'editEntry', id:el.dataset.id}; render(); },
+  deleteEntry(el){ snapshot(); state.entries = state.entries.filter(e=>e.id!==el.dataset.id); save(); ui.sheet=null; render(); toast(LANG==='zh'?'已删除':'Deleted', {action:'undo', label:t('Undo')}); render(); },
+  tickMilestone(el){
+    const c = child(); const done = state.milestones[c.id] = state.milestones[c.id]||{};
+    if(done[el.dataset.id]){ snapshot(); delete done[el.dataset.id]; state.entries = state.entries.filter(e=>!(e.type==='milestone' && e.mid===el.dataset.id && e.childId===c.id)); save(); render(); toast(t('Unticked'), {action:'undo', label:t('Undo')}); render(); return; }
+    ui.sheet = {kind:'milestone', id:el.dataset.id, txt:el.dataset.txt}; render();
+  },
+  skipVaccine(el){ const c=child(); snapshot(); (state.vaccines[c.id]=state.vaccines[c.id]||{})[el.dataset.id] = {status:'skipped', date:now()}; save(); ui.sheet=null; render(); toast(t('Skipped'),{action:'undo',label:t('Undo')}); render(); },
+  clearVaccine(el){ const c=child(); delete (state.vaccines[c.id]||{})[el.dataset.id]; save(); ui.sheet=null; render(); },
+  copyLink(el){ const url = 'https://littlesteps.app/join/'+(state.region==='US'?'us':'cn')+'/'+el.dataset.code; try{ navigator.clipboard.writeText(url); }catch(e){} toast(t('Copied'),{ms:2000}); render(); },
+  acceptInvite(el){
+    const code = el.dataset.code; state.invites = state.invites.filter(i=>i.code!==code);
+    const names = state.region==='CN' ? ['爸爸 Wei','外婆 Linda','奶奶'] : ['Wei','Linda','Grandpa Joe'];
+    const name = names.find(n=>!state.members.some(m=>m.name===n)) || ('Member '+(state.members.length+1));
+    state.members.push({id:'m_'+uid().slice(0,8), name, role:'member', joined:now()}); save(); ui.sheet=null; render();
+    toast(name+(LANG==='zh'?' 已加入家庭':' joined the family'), {ms:3000}); render();
+  },
+  revoke(el){ state.invites = state.invites.filter(i=>i.code!==el.dataset.code); save(); render(); },
+  removeMember(el){
+    const m = state.members.find(x=>x.id===el.dataset.id);
+    confirmDialog((m?m.name:'')+(LANG==='zh'?' 将立即失去访问权限，其之前的记录会保留并标注名字。':' loses access immediately. Their past entries stay, labelled with their name.'), t('Remove'), ()=>{
+      state.members = state.members.filter(x=>x.id!==el.dataset.id);
+      state.removed = (state.removed||[]).concat(m); save();
+    });
+  },
+  archiveChild(el){
+    const kid = state.children.find(x=>x.id===el.dataset.id); kid.archived = !kid.archived;
+    if(kid.archived){ delete state.timers[kid.id]; if(state.active===kid.id){ const n = liveChildren()[0]; state.active = n ? n.id : null; } }
+    save(); ui.sheet=null; render();
+  },
+  leaveCopy(){ confirmDialog(LANG==='zh'?'演示：这会把孩子的全部历史复制到一个属于你的新家庭（同一地区），然后离开当前家庭。':'Demo: this copies the children\'s full history into a new family of your own (same region) and then leaves this one.', 'OK', ()=>{ state.members = state.members.filter(m=>m.id===state.me); state.members[0].role='owner'; }); },
+  partnerLog(){ partnerLog(); },
+  lockscreen(){ ui.lock = true; render(); },
+  unlock(el, ev){ if(ev.target.closest('[data-stop]')) return; ui.lock = false; render(); },
+  setting(el){
+    const n = el.name; let v = el.type==='checkbox' ? el.checked : el.value;
+    if(n==='feedEveryH') v = +v;
+    if(n==='lang'){ LANG = v; }
+    const wasOff = state.offline;
+    state[n] = v; save();
+    if(n==='offline' && wasOff && !v){ render(); syncNow(); }
+    render();
+  },
+  export(){
+    const rows = [['child','type','detail','start','end','logged_by','note']];
+    state.entries.slice().sort((a,b)=>a.start-b.start).forEach(e=>{
+      const k = state.children.find(c=>c.id===e.childId);
+      const det = e.type==='feed' ? (e.sub==='bottle'? e.ml+' ml '+e.milk : e.sub==='breast' ? 'L '+Math.round((e.left||0)/MIN)+'m R '+Math.round((e.right||0)/MIN)+'m' : e.food) :
+        e.type==='growth' ? [e.weight&&e.weight+' kg', e.length&&e.length+' cm', e.head&&'head '+e.head+' cm'].filter(Boolean).join(' ') : (e.sub||e.reason||e.title||'');
+      rows.push([k?k.name:'', e.type+(e.sub&&e.type==='feed'?':'+e.sub:''), det, new Date(e.start).toISOString(), e.end?new Date(e.end).toISOString():'', memberName(e.by), e.note||'']);
+    });
+    const csv = rows.map(r=>r.map(x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = 'littlesteps-export.csv'; document.body.appendChild(a); a.click(); a.remove();
+  },
+  privacy(){ ui.sheet = {kind:'privacy'}; render(); },
+  signOut(){ state.onboarded = false; save(); ui.sheet=null; ui.step='welcome'; ui.ob={}; render(); },
+  deleteAccount(){ confirmDialog(LANG==='zh'?'这会永久删除你的账户和所有孩子的数据，无法撤销。':'This permanently deletes your account and all children\'s data. It cannot be undone.', t('Delete'), ()=>{ try{ localStorage.removeItem(KEY); }catch(e){} state = blank(); LANG = state.lang; ui.sheet=null; ui.step='welcome'; ui.ob={}; }); },
+  dlgYes(){ const d = ui.dialog; ui.dialog = null; if(d && d.onYes) d.onYes(); render(); },
+  dlgNo(){ ui.dialog = null; render(); }
+};
+
+/* ---------------- forms ---------------- */
+function readNum(fd, n, conv){ const v = parseFloat(fd.get(n)); return isNaN(v) ? null : (conv ? conv(v) : v); }
+function err(form, msg){ const p = form.querySelector('.err'); if(p){ p.textContent = msg; } else { toast(msg,{ms:3500}); render(); } }
+function validTime(ts){ return !isNaN(ts) && ts <= now()+5*MIN; }
+const F = {
+  account(fd){
+    ui.ob.name = String(fd.get('name')||'').trim();
+    if(!ui.ob.name) return;
+    state.region = ui.ob.region; state.me = 'm_me';
+    state.members = [{id:'m_me', name:ui.ob.name, role:'owner', joined:now(), method:ui.ob.method}];
+    save(); ui.step='child'; render();
+  },
+  join(fd){
+    seedDemo(LANG==='zh'?'CN':'US');
+    const name = String(fd.get('name')||'Wei').trim();
+    // join as the co-parent: become Wei
+    const wei = state.members.find(m=>m.id==='m_wei'); wei.name = name; state.me = wei.id;
+    state.onboarded = true; save(); ui.tab='home'; render();
+    toast(LANG==='zh'?'已加入家庭，可以看到共享时间线':'You joined the family. Here is the shared timeline.', {ms:3500}); render();
+  },
+  addFirstChild(fd, form){ if(childFromForm(fd, form)){ ui.step='done'; render(); } },
+  addChild(fd, form){ const c = childFromForm(fd, form); if(c){ ui.sheet=null; state.active = c.id; save(); render(); toast(c.name+(LANG==='zh'?' 已添加':' added'),{ms:2500}); render(); } },
+  editChild(fd, form){ const c = childFromForm(fd, form, ui.sheet.id); if(c){ ui.sheet=null; render(); } },
+  bottle(fd, form){
+    const imp = state.units==='imperial'; const ml = readNum(fd,'amt', v=> imp? v*29.5735 : v); const ts = parseLocal(fd.get('time'));
+    if(!ml || ml<=0) return err(form, LANG==='zh'?'请输入奶量':'Enter an amount');
+    if(!validTime(ts)) return err(form, LANG==='zh'?'不能选择未来的时间':'Time can\'t be in the future');
+    if(ml > 1000) return err(form, LANG==='zh'?'奶量过大，请核对':'That amount is too large. Please check it.');
+    const go = ()=>{ snapshot(); const [e] = addEntry({type:'feed', sub:'bottle', milk:fd.get('milk'), ml:Math.round(ml), start:ts}); ui.sheet=null;
+      const dup = checkDuplicate(e); render();
+      if(dup) toast(t('Possible duplicate')+': '+memberName(dup.by)+' · '+t('Bottle')+' '+fmtVol(dup.ml)+' · '+fmtTime(dup.start), {action:'mergeDup', label:t('Merge'), dupNew:e.id, ms:8000});
+      else savedToast(t('Bottle')+' '+fmtVol(ml));
+      render(); };
+    if(ml > 400) return confirmDialog((LANG==='zh'?'这个奶量比通常多：':'That is more than usual: ')+fmtVol(ml)+'. '+(LANG==='zh'?'确定吗？':'Is it right?'), null, go);
+    go();
+  },
+  solids(fd, form){ const ts = parseLocal(fd.get('time')); if(!validTime(ts)) return err(form,'Time can\'t be in the future'); snapshot(); addEntry({type:'feed', sub:'solids', food:fd.get('food'), amount:fd.get('amount'), note:fd.get('note'), start:ts}); ui.sheet=null; render(); savedToast(t('Solids')); render(); },
+  note(fd, form){ const ts = parseLocal(fd.get('time')); if(!validTime(ts)) return err(form,'Time can\'t be in the future'); snapshot(); addEntry({type:'note', note:fd.get('note'), start:ts}); ui.sheet=null; render(); savedToast(t('Note')); render(); },
+  growth(fd, form){
+    const imp = state.units==='imperial'; const c = child();
+    const w = readNum(fd,'weight', v=> imp? v/2.20462 : v), l = readNum(fd,'length', v=> imp? v*2.54 : v), hd = readNum(fd,'head', v=> imp? v*2.54 : v);
+    const ts = parseLocal(fd.get('time'));
+    if(!w && !l && !hd) return err(form, LANG==='zh'?'请至少填写一项':'Enter at least one measurement');
+    if(!validTime(ts) || ts < c.birth) return err(form, LANG==='zh'?'日期无效':'Date must be between birth and now');
+    if((w && (w<0.5 || w>40)) || (l && (l<30 || l>130)) || (hd && (hd<25 || hd>60))) return err(form, LANG==='zh'?'数值超出合理范围，请核对':'That value is outside the possible range. Please check it.');
+    const prev = growthPoints(c).filter(p=>p.weight && p.start<=ts).pop();
+    const go = ()=>{ snapshot(); addEntry({type:'growth', weight:w||undefined, length:l||undefined, head:hd||undefined, start:ts}, {single:true}); ui.sheet=null; ui.tab='health'; ui.htab='growth'; render();
+      const p = w ? percentile('weight', c.sex, ageMonths(c.birth, ts), w) : l ? percentile('length', c.sex, ageMonths(c.birth, ts), l) : null;
+      savedToast(p? (w?t('Weight'):t('Length'))+' '+ordinal(p)+' '+t('percentile') : t('Growth')); render(); };
+    if(w && prev && Math.abs(w-prev.weight)/prev.weight > 0.2 && ts - prev.start < 8*DAY) return confirmDialog((LANG==='zh'?'体重一周内变化超过 20%：':'Weight changed by more than 20% in a week: ')+fmtWeight(prev.weight)+' → '+fmtWeight(w)+'.', null, go);
+    go();
+  },
+  manualSleep(fd, form){
+    const s = parseLocal(fd.get('start')), e = parseLocal(fd.get('end'));
+    if(!validTime(s) || !validTime(e)) return err(form, LANG==='zh'?'不能选择未来的时间':'Times can\'t be in the future');
+    if(e <= s) return err(form, LANG==='zh'?'结束时间必须晚于开始时间':'End must be after start');
+    if(e - s > 16*HOUR) return err(form, LANG==='zh'?'睡眠时长超过 16 小时，请核对':'That is longer than 16 hours. Please check it.');
+    snapshot(); addEntry({type:'sleep', start:s, end:e, night:isNightTime(s)}, {single:true}); ui.sheet=null; render(); savedToast(t('Sleep')+' '+fmtDur(e-s)); render();
+  },
+  adjustSleep(fd, form){ const c = child(); const tm = state.timers[c.id].sleep; const e = parseLocal(fd.get('end'));
+    if(!validTime(e) || e<=tm.start) return err(form,'End must be after start');
+    snapshot(); delete state.timers[c.id].sleep; addEntry({type:'sleep', start:tm.start, end:e, night:isNightTime(tm.start)}, {single:true}); ui.sheet=null; render(); savedToast(t('Sleep')+' '+fmtDur(e-tm.start)); render(); },
+  visit(fd, form){ const ts = parseLocal(fd.get('time')); if(!validTime(ts)) return err(form,'Date can\'t be in the future'); const ph = fd.get('photo');
+    snapshot(); addEntry({type:'visit', reason:fd.get('reason'), clinic:fd.get('clinic'), note:fd.get('note'), photo: ph && ph.name ? ph.name : undefined, start:ts}, {single:true}); ui.sheet=null; render(); savedToast(t('Doctor visit')); render(); },
+  vaccine(fd, form){ const c = child(); const id = form.dataset.id; const d = parseLocal(fd.get('date'));
+    if(isNaN(d) || d > now()) return;
+    snapshot(); (state.vaccines[c.id]=state.vaccines[c.id]||{})[id] = {status:'done', date:d, clinic:fd.get('clinic')};
+    const v = vaccineList(c).find(x=>x.id===id);
+    state.entries.push({id:uid(), childId:c.id, type:'vaccine', title:v.name, start:d+12*HOUR, by:state.me, unsynced: state.offline||undefined});
+    save(); ui.sheet=null; render(); savedToast(v.name); render(); },
+  milestone(fd, form){ const c = child(); const id = form.dataset.id; const d = parseLocal(fd.get('date')); const ph = fd.get('photo');
+    snapshot(); (state.milestones[c.id]=state.milestones[c.id]||{})[id] = {date:d, note:fd.get('note'), photo: ph && ph.name ? ph.name : undefined};
+    state.entries.push({id:uid(), childId:c.id, type:'milestone', mid:id, title:ui.sheet.txt, note:fd.get('note')||undefined, start:d+12*HOUR, by:state.me, unsynced: state.offline||undefined});
+    const txt = ui.sheet.txt; save(); ui.sheet=null; render(); if(!c.archived) celebrate(txt); savedToast(t('Milestone')); render(); },
+  customMilestone(fd){ const c = child(); const list = state.customMilestones[c.id] = state.customMilestones[c.id]||[]; list.push({id:'cm_'+uid().slice(0,8), txt:String(fd.get('txt')).trim()}); save(); ui.sheet=null; render(); },
+  editEntry(fd, form){
+    const e = state.entries.find(x=>x.id===form.dataset.id); if(!e) return;
+    const s = parseLocal(fd.get('start')); if(!validTime(s)) return err(form, LANG==='zh'?'不能选择未来的时间':'Time can\'t be in the future');
+    let en = e.end;
+    if(e.type==='sleep'){ en = parseLocal(fd.get('end')); if(!validTime(en) || en<=s) return err(form, LANG==='zh'?'结束时间必须晚于开始时间':'End must be after start'); }
+    snapshot();
+    if(fd.has('amt')){ const v = parseFloat(fd.get('amt')); if(v>0) e.ml = state.units==='imperial' ? v*29.5735 : v; }
+    if(fd.has('left')){ e.left = (+fd.get('left')||0)*MIN; e.right = (+fd.get('right')||0)*MIN; en = s + e.left + e.right; }
+    if(fd.has('sub')) e.sub = fd.get('sub');
+    e.start = s; if(en) e.end = en; e.note = fd.get('note') || undefined;
+    if(fd.has('childId')) e.childId = fd.get('childId');
+    if(e.by !== state.me) e.editedBy = state.me;
+    if(state.offline) e.unsynced = true;
+    save(); ui.sheet=null; render(); savedToast(''); render();
+  }
+};
+function childFromForm(fd, form, editId){
+  const imp = state.units==='imperial';
+  const name = String(fd.get('name')||'').trim(); const birth = parseLocal(fd.get('birth'));
+  if(!name) return err(form, LANG==='zh'?'请输入名字':'Enter a name'), null;
+  if(isNaN(birth)) return err(form, LANG==='zh'?'请选择出生日期':'Choose a birth date'), null;
+  if(birth > now()) return err(form, LANG==='zh'?'出生日期不能在未来':'Birth date can\'t be in the future'), null;
+  const bw = readNum(fd,'bw', v=> imp? v/2.20462 : v), bl = readNum(fd,'bl', v=> imp? v*2.54 : v), bh = readNum(fd,'bh', v=> imp? v*2.54 : v);
+  if(bw!=null && (bw<0.4 || bw>7)) return err(form, LANG==='zh'?'出生体重超出合理范围':'Birth weight looks outside the possible range'), null;
+  if(bl!=null && (bl<25 || bl>65)) return err(form, LANG==='zh'?'出生身长超出合理范围':'Birth length looks outside the possible range'), null;
+  const data = {name, sex:fd.get('sex')||'girl', birth, bw:bw||undefined, bl:bl||undefined, bh:bh||undefined, color:fd.get('color')};
+  let c;
+  if(editId){ c = state.children.find(x=>x.id===editId); Object.assign(c, data); }
+  else { c = Object.assign({id:'c_'+uid().slice(0,8)}, data); state.children.push(c); if(!state.active) state.active = c.id; state.vaccines[c.id]={}; state.milestones[c.id]={}; }
+  save(); return c;
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener('click', ev=>{
+  const el = ev.target.closest('[data-act]'); if(!el || !appEl.contains(el) && !el.closest('.guide')) return;
+  const act = el.dataset.act;
+  if(el.tagName==='INPUT' || el.tagName==='SELECT') return; // handled by change
+  if(A[act]){ ev.preventDefault(); A[act](el, ev); }
+});
+document.addEventListener('change', ev=>{
+  const el = ev.target; if(!el.dataset || !el.dataset.act) return;
+  if(A[el.dataset.act]) A[el.dataset.act](el, ev);
+});
+document.addEventListener('submit', ev=>{
+  const f = ev.target; if(!f.dataset.form) return; ev.preventDefault();
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  F[f.dataset.form](new FormData(f), f);
+});
+document.addEventListener('keydown', ev=>{
+  if(ev.key==='Escape'){ if(ui.lock){ ui.lock=false; render(); } else if(ui.dialog){ ui.dialog=null; render(); } else if(ui.sheet){ ui.sheet=null; render(); } }
+});
+window.addEventListener('offline', ()=>{ state.offline = true; save(); render(); });
+window.addEventListener('online', ()=>{ if(state.offline){ state.offline = false; save(); render(); syncNow(); render(); } });
+
+/* ---------------- demo guide (wide screens) ---------------- */
+function renderGuide(){
+  const g = document.getElementById('guideBtns'); if(!g) return;
+  const items = state.onboarded ? [
+    ['gNight', t('Night feed walkthrough')], ['gLock', t('Open lock screen')], ['gPartner', t('Simulate partner log')],
+    ['gSecond', t('Second child')], ['gBig', t('Larger text for grandparents')], ['gOffline', t('Toggle offline')],
+    ['gLang', t('Language: 中文 / EN')], ['gNightMode', (LANG==='zh'?'切换日/夜间模式':'Switch day / night mode')], ['gReset', t('Reset demo')]
+  ] : [['gDemo', t('Try the demo family')], ['gLang', t('Language: 中文 / EN')]];
+  g.innerHTML = items.map(x=>'<button data-act="'+x[0]+'">'+esc(x[1])+'</button>').join('');
+}
+Object.assign(A, {
+  gDemo(){ A.demo(); },
+  gNight(){ ui.tab='home'; ui.sheet={kind:'feed'}; render(); },
+  gLock(){ ui.tab='home'; const c=child(); const tm=state.timers[c.id]||{}; if(!tm.feed && !tm.sleep){ A.startFeed({dataset:{side:suggestedSide(c.id)}}); } ui.lock=true; render(); },
+  gPartner(){ ui.tab='home'; partnerLog(); },
+  gSecond(){ ui.tab='family'; ui.sheet={kind:'addChild'}; render(); },
+  gBig(){ state.bigText=!state.bigText; save(); render(); },
+  gOffline(){ const was = state.offline; state.offline=!was; save(); render(); if(was) { syncNow(); render(); } },
+  gLang(){ A.toggleLang(); },
+  gNightMode(){ state.theme = isNight() ? 'day' : 'night'; save(); render(); },
+  gReset(){ try{ localStorage.removeItem(KEY); }catch(e){} const l = LANG; state = blank(); state.lang = LANG = l; ui.step='welcome'; ui.ob={}; ui.sheet=null; ui.tab='home'; render(); }
+});
+
+render();
+})();
+</script>
+</body>
+</html>
