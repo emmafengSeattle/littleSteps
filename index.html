@@ -295,7 +295,7 @@ const ZH = {
   "Celebrate!":"太棒了！","Leave and keep a copy":"离开并保留副本","Family settings":"家庭设置","Photo":"照片","ticked":"已完成","Unticked":"已取消",
   "Wei logged":"爸爸记录了","Partner log":"家人记录","Simulate partner log":"模拟家人记录","Open lock screen":"打开锁屏","Night feed walkthrough":"夜间喂奶演示",
   "Second child":"第二个孩子","Larger text for grandparents":"为长辈开启大字体","Toggle offline":"切换离线","Language: 中文 / EN":"语言：中文 / EN","Join as Wei":"以爸爸身份加入",
-  "Wrong child? Every entry can be moved.":"选错孩子？每条记录都可以移动。"
+  "Wrong child? Every entry can be moved.":"选错孩子？每条记录都可以移动。","Quick log":"快速记录","Sign in with":"登录方式"
 };
 let LANG = 'en';
 function t(s, v){ let r = (LANG==='zh' && ZH[s]) || s; if(v) for(const k in v) r = r.replace('{'+k+'}', v[k]); return r; }
@@ -555,6 +555,7 @@ function onboarding(){
     '<div style="flex:1"></div><div class="stack">'+
     '<button class="btn btn-primary btn-block" data-act="ob" data-to="region">'+t('Get started')+'</button>'+
     '<button class="btn btn-ghost btn-block" data-act="ob" data-to="join">'+t('Have an invite code?')+' '+t('Join a family')+'</button>'+
+    (state.members.length && state.children.length ? '<button class="btn btn-soft btn-block" data-act="signBackIn">'+(LANG==='zh'?'重新登录为 ':'Sign back in as ')+esc(me().name)+'</button>' : '')+
     '<button class="link" style="align-self:center" data-act="demo">'+t('Try the demo family')+'</button></div></div>';
   if(s==='region') return '<div class="ob">'+prog(1)+
     '<h1 class="h1">'+t('Where does your family live?')+'</h1><p class="muted" style="margin:0">'+t("This decides where your data is stored and which growth charts and vaccine schedule you see. It can't be changed later.")+'</p>'+
@@ -588,9 +589,11 @@ function onboarding(){
   }
   if(s==='join') return '<div class="ob"><h1 class="h1">'+t('Join a family')+'</h1><p class="muted" style="margin:0">'+t('Enter the 6-digit code from your family')+'</p>'+
     '<form class="stack" data-form="join"><input class="input code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required aria-label="'+t('Invite code')+'" placeholder="000000">'+
-    '<label class="f">'+t('Your name')+'<input class="input" name="name" required maxlength="40" value="Wei"></label>'+
+    '<fieldset style="border:0;padding:0;margin:0"><legend class="small muted" style="font-weight:500;margin-bottom:6px">'+t('Sign in with')+'</legend><div class="seg">'+
+      (LANG==='zh' ? [['wechat','微信'],['phone','手机号']] : [['apple','Apple'],['google','Google'],['email','Email'],['phone','Phone']]).map((m,i)=>'<label><input type="radio" name="method" value="'+m[0]+'" '+(i===0?'checked':'')+'><span>'+m[1]+'</span></label>').join('')+'</div></fieldset>'+
+    '<label class="f">'+t('Your name')+'<input class="input" name="name" required maxlength="40" placeholder="Wei / Linda"></label>'+
     '<label class="check"><input type="checkbox" name="consent" required><span>'+t('I am the parent or guardian and agree to the Privacy Policy. I consent to littleSteps storing my child\'s health information.')+'</span></label>'+
-    '<button class="btn btn-primary btn-block">'+t('Join')+'</button><p class="small muted" style="margin:0">Demo: any 6 digits joins the sample family (Mia, 6 weeks) as a co-parent.</p></form>'+
+    '<button class="btn btn-primary btn-block">'+t('Join')+'</button><p class="small muted" style="margin:0">'+(LANG==='zh'?'演示：任意 6 位数字即可加入示例家庭（Mia，6 周）。输入 Wei 或 Linda 以对应已有成员。':'Demo: any 6 digits joins the sample family (Mia, 6 weeks). Enter Wei or Linda to sign in as that member, or any other name to join as someone new.')+'</p></form>'+
     '<div style="flex:1"></div><button class="btn btn-ghost" data-act="ob" data-to="welcome">'+t('Back')+'</button></div>';
   return '';
 }
@@ -783,6 +786,7 @@ function growthView(c){
     const l = last[k]; const p = l ? percentile(k, c.sex, ageMonths(c.birth, l.at), l.v) : null;
     return '<div class="stat"><span class="k">'+t(lbl[k])+'</span><span class="v">'+(l?fmt[k](l.v):'—')+'</span><span class="d">'+(p? ordinal(p)+(LANG==='zh'?' 百分位':' percentile'):'')+'</span></div>';
   }).join('')+'</div>';
+  if(ageMonths(c.birth) > 12) h += '<div class="banner warn" style="margin-top:12px">'+(LANG==='zh'?esc(c.name)+' 已超过 12 个月。原型只内置 0–12 个月的曲线；正式版会切换到 '+(state.region==='US'?'CDC 2 岁以上':'中国标准')+'曲线。':esc(c.name)+' is older than 12 months. The prototype only embeds 0–12 month curves; the full app switches to '+(state.region==='US'?'CDC charts from age 2':'the China standard')+'.')+'</div>';
   h += '<div class="card" style="margin-top:12px"><div class="row between wrap" style="margin-bottom:6px"><h2 class="h3">'+t('Growth chart')+'</h2><div class="seg" style="padding:3px">'+
     ['weight','length','head'].map(k=>'<button style="min-height:34px;font-size:.8125rem;padding:2px 10px" aria-pressed="'+(ui.chartMetric===k)+'" data-act="chartMetric" data-v="'+k+'">'+t(lbl[k])+'</button>').join('')+'</div></div>'+
     growthChart(c, ui.chartMetric, pts)+
@@ -858,7 +862,7 @@ function familyView(){
   let h = '<h1 class="h1" style="margin-bottom:4px">'+t('Family')+'</h1><p class="small muted" style="margin:0 0 12px">'+t('Region')+': '+(state.region==='US'?t('United States'):t('China'))+'</p>';
   h += '<div class="card" style="padding-top:2px;padding-bottom:2px">'+state.members.map(m=>{
     const n = childEntries(child()?child().id:'').filter(e=>e.by===m.id).length;
-    return '<div class="mrow"><span class="av" style="width:40px;height:40px;border-radius:50%;background:var(--primary-soft);display:grid;place-items:center;font-weight:700">'+esc(m.name.replace(/^\S+\s(?=\S)/,'').slice(0,1))+'</span><div style="flex:1"><div class="h3">'+esc(m.name)+(m.id===state.me?' ('+t('You')+')':'')+'</div><div class="small muted">'+t(m.role==='owner'?'Owner':'Member')+' · '+n+' entries</div></div>'+
+    return '<div class="mrow"><span class="av" style="width:40px;height:40px;border-radius:50%;background:var(--primary-soft);display:grid;place-items:center;font-weight:700">'+esc(m.name.replace(/^\S+\s(?=\S)/,'').slice(0,1))+'</span><div style="flex:1"><div class="h3">'+esc(m.name)+(m.id===state.me?' ('+t('You')+')':'')+'</div><div class="small muted">'+t(m.role==='owner'?'Owner':'Member')+' · '+n+(LANG==='zh'?' 条记录':' entries')+'</div></div>'+
       (owner && m.id!==state.me ? '<button class="link small" data-act="removeMember" data-id="'+m.id+'">'+t('Remove')+'</button>' : '')+'</div>';
   }).join('')+'</div>';
   h += '<button class="btn btn-primary btn-block" style="margin-top:12px" data-act="sheet" data-kind="invite">'+ic('plus',' width="20" height="20"')+t('Invite someone')+'</button>';
@@ -866,8 +870,8 @@ function familyView(){
   h += '<div class="section"><h2 class="h2">'+t('Children')+'</h2><div class="card" style="padding-top:2px;padding-bottom:2px">'+state.children.map(k=>
     '<div class="mrow"><span style="width:40px;height:40px;border-radius:50%;background:'+k.color+';display:grid;place-items:center;font-weight:700;color:#1F2D3D">'+esc(k.name.slice(0,1))+'</span><div style="flex:1"><div class="h3">'+esc(k.name)+(k.archived?' · <span class="muted">'+(LANG==='zh'?'已归档':'Archived')+'</span>':'')+'</div><div class="small muted">'+ageLabel(k.birth)+' · '+fmtDate(k.birth,{year:'numeric',month:'short',day:'numeric'})+'</div></div><button class="link small" data-act="sheet" data-kind="editChild" data-id="'+k.id+'">'+(LANG==='zh'?'编辑':'Edit')+'</button></div>').join('')+'</div>'+
     '<button class="btn btn-ghost btn-block" style="margin-top:12px" data-act="sheet" data-kind="addChild">'+ic('plus',' width="20" height="20"')+t('Add child')+'</button></div>';
-  h += '<div class="section card stack"><h2 class="h3">'+t('Leave and keep a copy')+'</h2><p class="small muted" style="margin:0">If you separate, either parent can take a full copy of the children\'s history into a new family in the same region. Entries after that are kept separately.</p><button class="btn btn-ghost" data-act="leaveCopy">'+t('Leave and keep a copy')+'</button></div>';
-  h += '<div class="section card stack"><h2 class="h3">'+t('Simulate partner log')+'</h2><p class="small muted" style="margin:0">Shows what happens when another member logs from their phone. It arrives here within 5 seconds.</p><button class="btn btn-soft" data-act="partnerLog">'+t('Simulate partner log')+'</button></div>';
+  h += '<div class="section card stack"><h2 class="h3">'+t('Leave and keep a copy')+'</h2><p class="small muted" style="margin:0">'+(LANG==='zh'?'如果父母分开，任何一方都可以把孩子的完整记录复制到自己的新家庭（同一地区），之后的记录分开保存。':'If you separate, either parent can take a full copy of the children\'s history into a new family in the same region. Entries after that are kept separately.')+'</p><button class="btn btn-ghost" data-act="leaveCopy">'+t('Leave and keep a copy')+'</button></div>';
+  h += '<div class="section card stack"><h2 class="h3">'+t('Simulate partner log')+'</h2><p class="small muted" style="margin:0">'+(LANG==='zh'?'模拟另一位家人在自己手机上记录，5 秒内同步到这里。':'Shows what happens when another member logs from their phone. It arrives here within 5 seconds.')+'</p><button class="btn btn-soft" data-act="partnerLog">'+t('Simulate partner log')+'</button></div>';
   return h;
 }
 
@@ -931,7 +935,7 @@ function sheet(){
   }
   if(k==='addChild') return sheetHead('Add child')+childForm('addChild');
   if(k==='editChild'){ const kid = state.children.find(x=>x.id===s.id); return sheetHead('Edit')+childForm('editChild', kid)+
-      '<div class="stack section"><button class="btn btn-ghost" data-act="archiveChild" data-id="'+kid.id+'">'+(kid.archived?(LANG==='zh'?'取消归档':'Unarchive'):t('Archive'))+'</button><p class="small muted" style="margin:0">Archiving stops all reminders and celebrations immediately. Data is kept privately.</p></div>'; }
+      '<div class="stack section"><button class="btn btn-ghost" data-act="archiveChild" data-id="'+kid.id+'">'+(kid.archived?(LANG==='zh'?'取消归档':'Unarchive'):t('Archive'))+'</button><p class="small muted" style="margin:0">'+(LANG==='zh'?'归档后立即停止所有提醒和庆祝动画，数据私密保留。':'Archiving stops all reminders and celebrations immediately. Data is kept privately.')+'</p></div>'; }
   if(k==='editEntry'){
     const e = state.entries.find(x=>x.id===s.id); if(!e) return sheetHead('Edit entry');
     let f = '';
@@ -941,6 +945,7 @@ function sheet(){
     f += timeField('start', e.start, e.type==='sleep'?'Start':'Time');
     if(e.type==='sleep') f += timeField('end', e.end, 'End');
     f += '<label class="f">'+t('Note')+'<input class="input" name="note" maxlength="200" value="'+esc(e.note||'')+'"></label>';
+    if(e.linkId) f += '<label class="check"><input type="checkbox" name="both" checked><span>'+(LANG==='zh'?'同时修改另一个孩子的同一条记录':'Apply this change to both children')+'</span></label>';
     if(state.children.length>1) f += '<label class="f">'+t('Move to child')+'<select class="input" name="childId">'+state.children.map(k2=>'<option value="'+k2.id+'" '+(k2.id===e.childId?'selected':'')+'>'+esc(k2.name)+'</option>').join('')+'</select></label>';
     return sheetHead('Edit entry')+'<p class="small muted" style="margin:-8px 0 10px">'+t('Logged by')+' '+esc(memberName(e.by))+(e.editedBy?' · edited by '+esc(memberName(e.editedBy)):'')+(e.unsynced?' · '+t('Not synced yet'):'')+'</p><form class="stack" data-form="editEntry" data-id="'+e.id+'">'+f+'<p class="err small" role="alert" style="color:var(--alert);margin:0;min-height:1em"></p><button class="btn btn-primary btn-block">'+t('Save')+'</button></form><button class="btn btn-danger btn-block" style="margin-top:10px" data-act="deleteEntry" data-id="'+e.id+'">'+t('Delete')+'</button>';
   }
@@ -958,7 +963,7 @@ function sheet(){
       '<button class="btn btn-ghost" data-act="privacy">'+t('Privacy policy')+'</button>'+
       '<button class="btn btn-ghost" data-act="signOut">'+t('Sign out')+'</button>'+
       '<button class="btn btn-danger" data-act="deleteAccount">'+t('Delete account and all data')+'</button>'+
-      '<p class="small muted" style="margin:0">littleSteps MVP prototype · data stays in this browser.</p></div>';
+      '<p class="small muted" style="margin:0">'+(LANG==='zh'?'littleSteps MVP 原型 · 数据仅保存在本浏览器。':'littleSteps MVP prototype · data stays in this browser.')+'</p></div>';
   }
   if(k==='privacy') return sheetHead('Privacy policy')+'<div class="stack small" style="line-height:1.6"><p style="margin:0">Prototype summary. Parents are the users; children\'s information is collected only with a parent\'s or guardian\'s consent (COPPA in the US, separate consent under PIPL in China).</p><p style="margin:0">Data is stored in your family\'s region only, encrypted in transit and at rest. Photos are kept in private storage. No ads SDKs. Analytics never include children\'s names.</p><p style="margin:0">You can export all data at any time and delete your account; deletion completes within 30 days.</p><button class="btn btn-primary" data-act="closeSheet">OK</button></div>';
   return '';
@@ -985,7 +990,7 @@ function lockScreen(){
   let h = '<div class="lock" data-act="unlock" role="dialog" aria-label="'+t('Lock screen')+'"><div style="font-size:.875rem;color:#A9BCD4">'+d.toLocaleDateString(locale(),{weekday:'long',month:'long',day:'numeric'})+'</div><div class="clock" data-clock>'+d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'}).replace(/\s?[AP]M/,'')+'</div><div style="height:20px"></div>';
   if(tm.feed) h += '<div class="la" data-stop><div class="row between"><span style="color:#F2D9A6;font-weight:600;font-size:.875rem">'+t('Feeding')+', '+t(tm.feed.side==='left'?'left side':'right side')+'</span><span class="small" style="color:#8FA6C4">littleSteps · '+esc(c.name)+'</span></div><div class="t" data-since="'+tm.feed.start+'">00:00</div><div class="row"><button data-act="switchSide">'+t('Switch side')+'</button><button class="pri" data-act="stopFeed">'+t('Stop')+'</button></div></div>';
   if(tm.sleep) h += '<div class="la" data-stop><div class="row between"><span style="color:#F2D9A6;font-weight:600;font-size:.875rem">'+t('Sleeping')+'</span><span class="small" style="color:#8FA6C4">littleSteps · '+esc(c.name)+'</span></div><div class="t" data-since="'+tm.sleep.start+'">00:00</div><div class="row"><button class="pri" data-act="stopSleep">'+t('Stop')+'</button></div></div>';
-  if(!tm.feed && !tm.sleep) h += '<div class="notif">No live timers. Start a feed or sleep timer to see it here.</div>';
+  if(!tm.feed && !tm.sleep) h += '<div class="notif">'+(LANG==='zh'?'没有进行中的计时。开始喂奶或睡眠计时后会显示在这里。':'No live timers. Start a feed or sleep timer to see it here.')+'</div>';
   const lp = state.entries.filter(e=>e.childId===c.id && e.by!==state.me).sort((a,b)=>b.start-a.start)[0];
   if(lp) h += '<div class="notif">littleSteps · '+esc(memberName(lp.by))+' · '+fmtTime(lp.start)+'</div>';
   return h+'<div style="flex:1"></div><div class="small" style="color:#8FA6C4">'+t('Tap anywhere above to unlock')+'</div></div>';
@@ -1068,6 +1073,7 @@ const A = {
   sendCode(){ toast(LANG==='zh'?'验证码已发送（演示：123456）':'Code sent (demo: 123456)', {ms:3000}); render(); const i=document.querySelector('[name=sms]'); if(i){ i.value='123456'; } },
   toggleLang(){ LANG = state.lang = LANG==='zh'?'en':'zh'; save(); render(); },
   demo(){ seedDemo(ui.ob.region || (LANG==='zh'?'CN':'US')); ui.tab='home'; render(); toast(LANG==='zh'?'已载入示例家庭：Mia，6 周':'Demo family loaded: Mia, 6 weeks', {ms:3000}); render(); },
+  signBackIn(){ state.onboarded = true; save(); ui.tab='home'; render(); },
   finishOb(){ state.onboarded = true; save(); ui.tab='home'; render(); },
   tab(el){ ui.tab = el.dataset.v; if(ui.tab==='timeline') ui.day = startOfDay(now()); render(); const m=$('.main'); if(m) m.scrollTop=0; },
   htab(el){ ui.htab = el.dataset.v; render(); },
@@ -1182,9 +1188,11 @@ const F = {
   },
   join(fd){
     seedDemo(LANG==='zh'?'CN':'US');
-    const name = String(fd.get('name')||'Wei').trim();
-    // join as the co-parent: become Wei
-    const wei = state.members.find(m=>m.id==='m_wei'); wei.name = name; state.me = wei.id;
+    const name = String(fd.get('name')||'').trim() || 'Wei';
+    const existing = state.members.find(m => m.id!=='m_emily' && m.name.toLowerCase().includes(name.toLowerCase()));
+    if(existing){ state.me = existing.id; }
+    else { const m = {id:'m_'+uid().slice(0,8), name, role:'member', joined:now(), method:fd.get('method')}; state.members.push(m); state.me = m.id; }
+    if(/linda|外婆/i.test(name)) state.bigText = true; // Linda's journey: larger text
     state.onboarded = true; save(); ui.tab='home'; render();
     toast(LANG==='zh'?'已加入家庭，可以看到共享时间线':'You joined the family. Here is the shared timeline.', {ms:3500}); render();
   },
@@ -1254,6 +1262,7 @@ const F = {
     if(fd.has('sub')) e.sub = fd.get('sub');
     e.start = s; if(en) e.end = en; e.note = fd.get('note') || undefined;
     if(fd.has('childId')) e.childId = fd.get('childId');
+    if(e.linkId && fd.get('both')) state.entries.filter(x=>x.linkId===e.linkId && x.id!==e.id).forEach(x=>{ ['start','end','ml','left','right','sub','note'].forEach(k=>{ if(e[k]!==undefined) x[k]=e[k]; }); });
     if(e.by !== state.me) e.editedBy = state.me;
     if(state.offline) e.unsynced = true;
     save(); ui.sheet=null; render(); savedToast(''); render();

@@ -15,8 +15,8 @@ On a wide screen a **demo guide** panel appears beside the phone frame with shor
 | PRD area | In the prototype |
 |---|---|
 | Accounts & region | US (Apple / Google / email) or China (WeChat / phone + SMS); region fixed at sign-up; parental consent; EN / 简体中文 |
-| Family sharing | Invite by 6-digit code, link or QR (7-day, single use, revocable); join with a code; remove members; "leave and keep a copy"; simulated partner log arriving in ~3 s |
-| Child profile | Multiple children, colour tags, switcher on every screen, edit, archive (stops reminders and celebrations) |
+| Family sharing | Invite by 6-digit code, link or QR (7-day, single use, revocable); join with a code and your own sign-in method (Wei, Linda or a new member); remove members; "leave and keep a copy"; simulated partner log arriving in ~3 s |
+| Child profile | Multiple children, colour tags, switcher on every screen, edit, archive (stops reminders and celebrations); twin entries can be edited together |
 | Quick-log home | Status cards (last feed, sleep, last diaper), handover line, reminders, big one-handed buttons, "log for both" with 2+ children |
 | Feeding | Breast timer with suggested side, switch side, per-side totals; bottle pre-filled with last amount (ml / oz); solids |
 | Sleep | One-tap timer, nap vs night by time of day, missed-sleep entry, adjust a forgotten timer |
